@@ -1,0 +1,33 @@
+import pymunk as pm
+import pygame as pg
+from objects.pymunk_object import PymunkObject
+import math
+
+
+class Rectangle(PymunkObject):
+    def __init__(self, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC):
+        super().__init__(mass, friction, elasticity, body_type)
+        self.position = ((corner_1[0] + corner_2[0])/2,(corner_1[1] + corner_2[1])/2)
+        width = abs(corner_1[0] - corner_2[0])
+        height = abs(corner_1[1] - corner_2[1])
+
+        self.points = [(-width/2, -height/2), (width/2, -height/2), (width/2, height/2), (-width/2, height/2)]
+        self.surface:pg.Surface = pg.Surface((width, height), pg.SRCALPHA)
+        self.surface.fill((0, 255, 0))
+    
+    def place(self, space:pm.Space) -> None:
+        super().place(space)
+
+        self.shape = pm.shapes.Poly(self.body, self.points)
+        self.shape.mass = self.mass
+        self.shape.friction = self.friction
+        self.shape.elasticity = self.elasticity
+
+        if (self.body):
+            space.add(self.body, self.shape)
+
+        
+        
+
+
+
