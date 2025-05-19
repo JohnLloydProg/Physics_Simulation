@@ -18,8 +18,25 @@ class Circle(PymunkObject):
         pg.draw.line(self.surface, (0, 0, 0), (radius, radius), (radius*2, radius), 3)
         self.mask = pg.mask.from_surface(self.surface)
     
+    @classmethod
+    def from_json(self, data:dict) -> 'Circle':
+        return Circle(
+            position=data['position'],
+            radius=data['radius'],
+            mass=data['mass'],
+            friction=data['friction'],
+            elasticity=data['elasticity'],
+            body_type=data['body_type']
+        )
+    
     def clicked(self, event: Event) -> bool:
         return super().clicked(event)
+    
+    def json(self) -> dict:
+        data = super().json()
+        data['radius'] = self.radius
+        data['type'] = 'Circle'
+        return data
     
     def place(self, space:pm.Space) -> None:
         super().place(space)

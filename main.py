@@ -5,9 +5,11 @@ from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
 from objects.rectangle import Rectangle
 from objects.square import Square
-from ui import ButtonBehavior, ToolButton, TextButton
+from ui import ToolButton, TextButton
 from mouse import Mouse
 import math
+import pickle
+
 
 class Simulation:
     running = True
@@ -28,7 +30,8 @@ class Simulation:
             'circle':ToolButton(10, 10, 50, 50, lambda: self.commands.changeTool('Circle'), (255, 0, 0), 'Circle'), 
             'square':ToolButton(70, 10, 50, 50, lambda: self.commands.changeTool('Square'), (0, 255, 0), 'Square'),
             'rectangle':ToolButton(130, 10, 50, 50, lambda: self.commands.changeTool('Rectangle'), (0, 0, 255), 'Rectangle'), 
-            'move':ToolButton(190, 10, 50, 50, lambda: self.commands.changeTool('Move'), (255, 0, 0), 'Move'),
+            'undo':ToolButton(190, 10, 50, 50, lambda: self.commands.undo(), (255, 0, 0), 'Undo'),
+            'redo':ToolButton(190, 90, 50, 50, lambda: self.commands.redo(), (255, 0, 0), 'Redo'),
             'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear')
@@ -61,6 +64,7 @@ class Simulation:
                             self.placeholder = self.mouse.position
                     if (self.mouse.up(event)):
                         if (self.placeholder):
+                            self.commands.record()
                             if (self.tool == 'Circle'):
                                 circle = Circle(self.placeholder, math.dist(self.placeholder, self.mouse.position))
                                 self.objects.append(circle)
@@ -70,7 +74,6 @@ class Simulation:
                             elif (self.tool == 'Square'):
                                 square = Square(self.placeholder, self.mouse.position)
                                 self.objects.append(square)
-                            print(self.objects)
                             self.placeholder = None
                 
                 for button in self.buttons.values():
@@ -110,6 +113,9 @@ class Simulation:
 
 
 class Tools:
+    undoStack = []
+    redoStack = []
+
     def __init__(self, simulation:Simulation):
         self.simulation = simulation
     
@@ -133,6 +139,49 @@ class Tools:
     def pause(self):
         self.simulation.paused = not self.simulation.paused
     
+    def load(self):
+        pass
+
+    def save(self):
+        pass
+
+    def undo(self):
+        if (self.undoStack):
+            action = self.undoStack.pop()
+            self.redoStack.append(self.encrypt())
+            self.simulation.objects.clear()
+            self.simulation.objects = self.decrypt(action)
+            print(self.simulation.objects)
+            print(self.undoStack)
+    
+    def redo(self):
+        if (self.redoStack):
+            action = self.redoStack.pop()
+            self.undoStack.append(self.encrypt())
+            self.simulation.objects.clear()
+            self.simulation.objects = self.decrypt(action)
+    
+    def record(self):
+        self.undoStack.append(self.encrypt())
+        self.redoStack.clear()
+
+    def encrypt(self):
+        data = [pymunkObject.json() for pymunkObject in self.simulation.objects]
+        self.saved = pickle.dumps(data)
+        return pickle.dumps(data)
+    
+    def decrypt(self, data):
+        jsonObjects = pickle.loads(data)
+        data = []
+        for jsonObject in jsonObjects:
+            if jsonObject.get('type') == 'Circle':
+                data.append(Circle.from_json(jsonObject))
+            elif jsonObject.get('type') == 'Rectangle':
+                data.append(Rectangle.from_json(jsonObject))
+            elif jsonObject.get('type') == 'Square':
+                data.append(Square.from_json(jsonObject))
+        return data
+
     def clear(self):
         if (self.simulation.playing):
             self.start()

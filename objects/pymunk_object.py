@@ -31,6 +31,15 @@ class PymunkObject:
                     return True
         return False
     
+    def json(self) -> dict:
+        return {
+            'position':self.position,
+            'mass':self.mass,
+            'friction':self.friction,
+            'elasticity':self.elasticity,
+            'body_type':self.body_type
+        }
+    
     def remove(self, space:pm.Space) -> None:
         if (self.body):
             space.remove(self.body, self.shape)
