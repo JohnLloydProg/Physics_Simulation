@@ -34,6 +34,13 @@ class Rectangle(PymunkObject):
         data['corner_2'] = self.corner_2
         data['type'] = 'Rectangle'
         return data
+
+    def set_position(self, new_pos:tuple[int, int]) -> None:
+        x_dif = new_pos[0] - self.position[0]
+        y_dif = new_pos[1] - self.position[1] 
+        super().set_position(new_pos)
+        self.corner_1 = (self.corner_1[0]+x_dif, self.corner_1[1]+y_dif)
+        self.corner_2 = (self.corner_2[0]+x_dif, self.corner_2[1]+y_dif)
     
     def place(self, space:pm.Space) -> None:
         super().place(space)
