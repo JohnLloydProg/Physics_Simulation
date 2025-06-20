@@ -1,24 +1,28 @@
 import pygame as pg
 import pymunk as pm
 from objects.pymunk_object import PymunkObject
+from objects.circle import Circle
+from objects.rectangle import Rectangle
+from objects.square import Square
 from constraints.constraint import PymunkConstraint
 import math
 
 
 class DampedSpring(PymunkConstraint):
     def __init__(self, body_a: PymunkObject, anchor_a: tuple[float, float]):
-        super().__init__(body_a)
-        self.anchor_a = anchor_a
+        super().__init__(body_a, anchor_a)
     
     def place(self, space: pm.Space) -> None:
-        pos1_x = self.body_a.body.position[0] + self.anchor_a[0]
-        pos1_y = self.body_a.body.position[1] + self.anchor_a[1]
-        pos2_x = self.body_b.body.position[0] + self.anchor_b[0]
-        pos2_y = self.body_b.body.position[1] + self.anchor_b[1]
+        pos1_x = self.body_a.position[0] + self.anchor_a[0]
+        pos1_y = self.body_a.position[1] + self.anchor_a[1]
+        pos2_x = self.body_b.position[0] + self.anchor_b[0]
+        pos2_y = self.body_b.position[1] + self.anchor_b[1]
         rest_length = math.dist((pos1_x, pos1_y), (pos2_x, pos2_y))
+        body_a = self.body_a.body if (isinstance(self.body_a, PymunkObject)) else self.body_a
+        body_b = self.body_b.body if (isinstance(self.body_b, PymunkObject)) else self.body_b
         self.constraint = pm.DampedSpring(
-            self.body_a.body, 
-            self.body_b.body, 
+            body_a, 
+            body_b, 
             self.anchor_a, 
             self.anchor_b, 
             rest_length=rest_length, 
@@ -32,9 +36,21 @@ class DampedSpring(PymunkConstraint):
         data['type'] = 'DampedSpring'
         return data
 
-    def from_json(self, data: dict) -> 'DampedSpring':
-        body_a = PymunkObject.from_json(data['body_a'])
-        body_b = PymunkObject.from_json(data['body_b'])
+    @classmethod
+    def from_json(self, data: dict, space:pm.Space, objects:list) -> 'DampedSpring':
+        if (data['body_a'] == 'space'):
+            body_a = space.static_body
+        else:
+            for object in objects:
+                if (object.id == data['body_a']):
+                    body_a = object
+                    break
+        if (data['body_b'] == 'space'):
+            body_b = space.static_body
+        else:
+            for object in objects:
+                if (object.id == data['body_b']):
+                    body_b = object
         anchor_a = tuple(data['anchor_a'])
         anchor_b = tuple(data['anchor_b'])
         

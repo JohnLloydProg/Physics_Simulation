@@ -7,8 +7,8 @@ import math
 
 
 class Circle(PymunkObject):
-    def __init__(self, position:tuple[int, int], radius:float, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC):
-        super().__init__(mass, friction, elasticity, body_type)
+    def __init__(self, id:int, position:tuple[int, int], radius:float, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC):
+        super().__init__(id, mass, friction, elasticity, body_type)
         self.position = position
         self.radius = radius
 
@@ -21,6 +21,7 @@ class Circle(PymunkObject):
     @classmethod
     def from_json(self, data:dict) -> 'Circle':
         return Circle(
+            id = data['id'],
             position=data['position'],
             radius=data['radius'],
             mass=data['mass'],
@@ -28,9 +29,6 @@ class Circle(PymunkObject):
             elasticity=data['elasticity'],
             body_type=data['body_type']
         )
-    
-    def clicked(self, event: Event) -> bool:
-        return super().clicked(event)
     
     def json(self) -> dict:
         data = super().json()

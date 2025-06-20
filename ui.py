@@ -7,11 +7,12 @@ class ButtonBehavior:
         self.rect = pg.Rect(left, right, width, height)
         self.on_press = on_press
     
-    def clicked(self, event:pg.event.Event) -> bool:
-        if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
+    def clicked(self, event:pg.event.Event, consumed:list) -> bool:
+        if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event not in consumed):
             if (self.rect.collidepoint(pg.mouse.get_pos())):
                 if (self.on_press):
                     self.on_press()
+                    consumed.append(event)
                 return True
         return False
 

@@ -5,21 +5,22 @@ from objects.pymunk_object import PymunkObject
 
 class PymunkConstraint:
     constraint:pm.Constraint
-    body_b: PymunkObject = None
+    body_b: pm.Body = None
 
-    def __init__(self, body_a: PymunkObject):
+    def __init__(self, body_a: PymunkObject|pm.Body, anchor_a: tuple[float, float]):
         self.body_a = body_a
+        self.anchor_a = anchor_a
         self.constraint = None
     
-    def set_body_b(self, body_b: PymunkObject, anchor_b: tuple[float, float]) -> None:
+    def set_body_b(self, body_b: PymunkObject|pm.Body, anchor_b: tuple[float, float]) -> None:
         self.body_b = body_b
         self.anchor_b = anchor_b
     
     def json(self) -> dict:
         data = {
-            'body_a': self.body_a.json(),
+            'body_a': self.body_a.id if (isinstance(self.body_a, PymunkObject)) else 'space',
             'anchor_a': self.anchor_a,
-            'body_b': self.body_b.json() if self.body_b else None,
+            'body_b': self.body_b.id if (isinstance(self.body_b, PymunkObject)) else 'space',
             'anchor_b': self.anchor_b if hasattr(self, 'anchor_b') else None
         }
         return data

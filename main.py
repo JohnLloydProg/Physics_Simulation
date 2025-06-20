@@ -27,6 +27,7 @@ class Simulation:
     current_constraint:PymunkConstraint = None
     file:str = None
     offset:tuple[int, int] = None
+    id = 0
 
     def __init__(self):
         self.window = pg.display.set_mode((1440, 900))
@@ -73,30 +74,40 @@ class Simulation:
                 if (event.type == pg.QUIT):
                     pg.quit()
                     quit()
+                    
+                consumed = []
+                for button in self.buttons.values():
+                    button.clicked(event, consumed)
+                
+                for object in self.objects:
+                    object.clicked(event, consumed)
                 
                 self.mouse.move(event)
                 if (self.tool in ['Circle', 'Rectangle', 'Square']):
-                    if (self.mouse.down(event)):
+                    if (self.mouse.down(event, consumed)):
                         if (1430 >= self.mouse.position[0] >= 370 and 890 >= self.mouse.position[1] >= 10):
                             self.placeholder = self.mouse.position
-                    if (self.mouse.up(event)):
+                            break
+                    if (self.mouse.up(event, consumed)):
                         if (self.placeholder):
                             pymunkObject = None
                             if (self.tool == 'Circle'):
-                                pymunkObject = Circle(self.placeholder, math.dist(self.placeholder, self.mouse.position))
+                                pymunkObject = Circle(self.id, self.placeholder, math.dist(self.placeholder, self.mouse.position))
                             elif (self.tool == 'Rectangle'):
-                                pymunkObject = Rectangle(self.placeholder, self.mouse.position)
+                                pymunkObject = Rectangle(self.id, self.placeholder, self.mouse.position)
                             elif (self.tool == 'Square'):
-                                pymunkObject = Square(self.placeholder, self.mouse.position)
+                                pymunkObject = Square(self.id, self.placeholder, self.mouse.position)
                             if (pymunkObject):
                                 pymunkObject.place(self.space)
                                 self.objects.append(pymunkObject)
+                                self.id += 1
                             self.placeholder = None
                             self.commands.record()
+                            break
 
                 if (self.tool == 'Move'):
                     for obj in self.objects:
-                        offset = obj.clicked(event)
+                        offset = obj.clicked(event, consumed)
                         if (offset):
                             self.offset = offset
                             self.selected_object = obj
@@ -105,12 +116,12 @@ class Simulation:
                     if (self.selected_object and self.mouse.dragging(event)):
                         position = (self.mouse.position[0] + self.offset[0], self.mouse.position[1] + self.offset[1])
                         self.selected_object.set_position(position)
-                    if (self.mouse.up(event)):
+                    if (self.mouse.up(event, consumed)):
                         self.selected_object = None
                 if (self.tool == 'Spring'):
                     offset = None
                     for obj in self.objects:
-                        offset = obj.clicked(event)
+                        offset = obj.clicked(event, consumed)
                         if (offset):
                             offset = (-1*offset[0], -1*offset[1])
                             if (not self.current_constraint):
@@ -119,16 +130,20 @@ class Simulation:
                                 self.current_constraint.set_body_b(obj, offset)
                                 self.constraints.append(self.current_constraint)
                                 self.current_constraint.place(self.space)
+                                self.commands.record()
                                 self.current_constraint = None
                             break
-                    
-                    """Add the capability to attach constraints to the space."""
-                
-                for button in self.buttons.values():
-                    button.clicked(event)
-                
-                for object in self.objects:
-                    object.clicked(event)
+
+                    if (not offset and self.mouse.down(event, consumed)):
+                        if (not self.current_constraint):
+                            print('creating damped string')
+                            self.current_constraint = DampedSpring(self.space.static_body, self.mouse.position)
+                        else:
+                            self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
+                            self.constraints.append(self.current_constraint)
+                            self.current_constraint.place(self.space)
+                            self.commands.record()
+                            self.current_constraint = None
             
             self.draw()
             self.clock.tick(60)
@@ -186,9 +201,11 @@ class Tools:
             self.simulation.paused = False
         
         self.simulation.playing = not self.simulation.playing
+        self.simulation.tool = None
     
     def pause(self):
         self.simulation.paused = not self.simulation.paused
+        self.simulation.tool = None
     
     def load(self):
         try:
@@ -231,30 +248,38 @@ class Tools:
             action = self.undoStack.pop()
             self.redoStack.append(action)
             self.clear()
-            self.simulation.objects = self.decrypt(self.undoStack[-1])
+            data = self.decrypt(self.undoStack[-1])
+            self.simulation.objects = data.get('objects', [])
+            self.simulation.constraints = data.get('constraints', [])
+        self.simulation.tool = None
     
     def redo(self):
         if (self.redoStack):
             action = self.redoStack.pop()
             self.undoStack.append(action)
             self.clear()
-            self.simulation.objects = self.decrypt(self.undoStack[-1])
+            data = self.decrypt(self.undoStack[-1])
+            self.simulation.objects = data.get('objects', [])
+            self.simulation.constraints = data.get('constraints', [])
+        self.simulation.tool = None
     
     def record(self):
         self.undoStack.append(self.encrypt())
         self.redoStack.clear()
 
     def encrypt(self):
-        data = []
+        data = {'objects': [], 'constraints': []}
         for pymunkObject in self.simulation.objects:
-            data.append(pymunkObject.json())
+            data['objects'].append(pymunkObject.json())
         for pymunkConstraint in self.simulation.constraints:
-            data.append(pymunkConstraint.json())
+            data['constraints'].append(pymunkConstraint.json())
         return pickle.dumps(data)
     
     def decrypt(self, data):
-        jsonObjects = pickle.loads(data)
-        data = []
+        data = pickle.loads(data)
+        jsonObjects = data.get('objects')
+        jsonConstraints = data.get('constraints')
+        returnedData = {'objects':[], 'constraints':[]}
         for jsonObject in jsonObjects:
             pymunkObject = None
             if jsonObject.get('type') == 'Circle':
@@ -263,12 +288,17 @@ class Tools:
                 pymunkObject = Rectangle.from_json(jsonObject)
             elif jsonObject.get('type') == 'Square':
                 pymunkObject = Square.from_json(jsonObject)
-            elif jsonObject.get('type') == 'DampedSpring':
-                pymunkObject = DampedSpring.from_json(jsonObject)
             if (pymunkObject):
                 pymunkObject.place(self.simulation.space)
-                data.append(pymunkObject)
-        return data
+                returnedData['objects'].append(pymunkObject)
+        for jsonConstraint in jsonConstraints:
+            pymunkConstraint = None
+            if jsonConstraint.get('type') == 'DampedSpring':
+                pymunkConstraint = DampedSpring.from_json(jsonConstraint, self.simulation.space, returnedData['objects'])
+            if (pymunkConstraint):
+                pymunkConstraint.place(self.simulation.space)
+                returnedData['constraints'].append(pymunkConstraint)
+        return returnedData
 
     def clear(self):
         for constraint in self.simulation.constraints:
@@ -278,6 +308,7 @@ class Tools:
             object.remove(self.simulation.space)
         self.simulation.objects.clear()
         self.simulation.paused = True
+        self.simulation.tool = None
 
 
 if __name__ == '__main__':

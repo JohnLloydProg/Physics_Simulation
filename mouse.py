@@ -5,14 +5,14 @@ class Mouse:
     hold = False
     position = (0, 0)
 
-    def down(self, event:pg.event.Event) -> bool:
-        if (event.type == pg.MOUSEBUTTONDOWN):
+    def down(self, event:pg.event.Event, consumed:list) -> bool:
+        if (event.type == pg.MOUSEBUTTONDOWN and event not in consumed):
             self.hold = True
             return True
         return False
 
-    def up(self, event:pg.event.Event) -> bool:
-        if (event.type == pg.MOUSEBUTTONUP):
+    def up(self, event:pg.event.Event, consumed:list) -> bool:
+        if (event.type == pg.MOUSEBUTTONUP and event not in consumed):
             self.hold = False
             return True
         return False
