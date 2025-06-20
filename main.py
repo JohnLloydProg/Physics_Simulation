@@ -23,7 +23,6 @@ class Simulation:
     placeholder:tuple[int, int] = None
     constraints:list = []
     playing:bool = False
-    paused:bool = True
     selected_object:PymunkObject = None
     current_constraint:PymunkConstraint = None
     file:str = None
@@ -82,10 +81,10 @@ class Simulation:
                     button.clicked(event, consumed)
                 
                 for object in self.objects:
-                    object.clicked(event, consumed)
+                    object.clicked(event, consumed, self.space)
                 
                 self.mouse.move(event)
-                if (self.tool in ['Circle', 'Rectangle', 'Square']):
+                if (self.tool in ['Circle', 'Rectangle', 'Square'] and not self.playing):
                     if (self.mouse.down(event, consumed)):
                         if (1430 >= self.mouse.position[0] >= 370 and 890 >= self.mouse.position[1] >= 10):
                             self.placeholder = self.mouse.position
@@ -107,9 +106,9 @@ class Simulation:
                             self.commands.record()
                             break
 
-                if (self.tool == 'Move'):
+                if (self.tool == 'Move' and not self.playing):
                     for obj in self.objects:
-                        offset = obj.clicked(event, consumed)
+                        offset = obj.clicked(event, consumed, self.space)
                         if (offset):
                             self.offset = offset
                             self.selected_object = obj
@@ -118,12 +117,13 @@ class Simulation:
                     if (self.selected_object and self.mouse.dragging(event)):
                         position = (self.mouse.position[0] + self.offset[0], self.mouse.position[1] + self.offset[1])
                         self.selected_object.set_position(position)
+                        self.space.reindex_shapes_for_body(self.selected_object.body)
                     if (self.mouse.up(event, consumed)):
                         self.selected_object = None
-                if (self.tool in ['Spring', 'PinJoint']):
+                if (self.tool in ['Spring', 'PinJoint'] and not self.playing):
                     offset = None
                     for obj in self.objects:
-                        offset = obj.clicked(event, consumed)
+                        offset = obj.clicked(event, consumed, self.space)
                         if (offset):
                             offset = (-1*offset[0], -1*offset[1])
                             if (not self.current_constraint):
@@ -151,10 +151,20 @@ class Simulation:
                             self.current_constraint.place(self.space)
                             self.commands.record()
                             self.current_constraint = None
+                if (self.playing):
+                    for obj in self.objects:
+                        offset = obj.clicked(event, consumed, self.space)
+                        if (offset):
+                            offset = (-1*offset[0], -1*offset[1])
+                            self.mouse.join(obj.body, offset, self.space)
+                            break
+                    if (event.type == pg.MOUSEBUTTONUP and self.mouse.joint):
+                        self.mouse.unjoin(self.space)
+                    
             
             self.draw()
             self.clock.tick(60)
-            if (not self.paused):
+            if (self.playing):
                 self.space.step(1/60)
     
     def draw(self):
@@ -203,18 +213,18 @@ class Tools:
         if (self.simulation.playing):
             for object in self.simulation.objects:
                 object.reset()
+                self.simulation.space.reindex_shapes_for_body(object.body)
         
         for button in self.simulation.buttons.values():
             if (isinstance(button, ToolButton)):
                 button.clickable = not button.clickable
         clear_btn:ToolButton = self.simulation.buttons.get('clear')
         clear_btn.clickable = not clear_btn.clickable
-        self.simulation.paused = not self.simulation.paused
         self.simulation.playing = not self.simulation.playing
         self.simulation.tool = None
     
     def pause(self):
-        self.simulation.paused = not self.simulation.paused
+        self.simulation.playing = not self.simulation.playing
         self.simulation.tool = None
     
     def load(self):
@@ -311,7 +321,7 @@ class Tools:
         for object in self.simulation.objects:
             object.remove(self.simulation.space)
         self.simulation.objects.clear()
-        self.simulation.paused = True
+        self.simulation.playing = False
         self.simulation.tool = None
 
 
