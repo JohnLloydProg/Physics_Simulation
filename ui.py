@@ -5,11 +5,12 @@ from typing import Callable
 class ButtonBehavior:
     def __init__(self, left:float, right:float, width:float, height:float, on_press:Callable|None):
         self.rect = pg.Rect(left, right, width, height)
+        self.clickable:bool = True
         self.on_press = on_press
     
     def clicked(self, event:pg.event.Event, consumed:list) -> bool:
         if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event not in consumed):
-            if (self.rect.collidepoint(pg.mouse.get_pos())):
+            if (self.rect.collidepoint(pg.mouse.get_pos()) and self.clickable):
                 if (self.on_press):
                     self.on_press()
                     consumed.append(event)
@@ -28,6 +29,8 @@ class ImageButton(ButtonBehavior):
 class TextButton(ButtonBehavior):
     def __init__(self, left: float, right: float, width: float, height: float, on_press: Callable, background_color:tuple[int, int, int], content:str):
         super().__init__(left, right, width, height, on_press)
+        self.surface = pg.Surface((width, height), pg.SRCALPHA)
+        self.surface.fill((0, 0, 0, 100))
         self.background_color = background_color
         self.content = content
     
@@ -37,6 +40,8 @@ class TextButton(ButtonBehavior):
     
     def draw(self, window:pg.Surface) -> None:
         pg.draw.rect(window, self.background_color, self.rect)
+        if (not self.clickable):
+            window.blit(self.surface, self.rect)
         if (self.content):
             text, rect = self.get_text()
             window.blit(text, rect)

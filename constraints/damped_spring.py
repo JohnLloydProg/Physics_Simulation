@@ -1,9 +1,6 @@
 import pygame as pg
 import pymunk as pm
 from objects.pymunk_object import PymunkObject
-from objects.circle import Circle
-from objects.rectangle import Rectangle
-from objects.square import Square
 from constraints.constraint import PymunkConstraint
 import math
 
@@ -36,21 +33,9 @@ class DampedSpring(PymunkConstraint):
         data['type'] = 'DampedSpring'
         return data
 
-    @classmethod
-    def from_json(self, data: dict, space:pm.Space, objects:list) -> 'DampedSpring':
-        if (data['body_a'] == 'space'):
-            body_a = space.static_body
-        else:
-            for object in objects:
-                if (object.id == data['body_a']):
-                    body_a = object
-                    break
-        if (data['body_b'] == 'space'):
-            body_b = space.static_body
-        else:
-            for object in objects:
-                if (object.id == data['body_b']):
-                    body_b = object
+    @staticmethod
+    def from_json(data: dict, space:pm.Space, objects:list) -> 'DampedSpring':
+        body_a, body_b = PymunkConstraint.from_json(data, space, objects)
         anchor_a = tuple(data['anchor_a'])
         anchor_b = tuple(data['anchor_b'])
         

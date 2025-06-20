@@ -13,8 +13,8 @@ class Square(Rectangle):
         self.surface = pg.Surface((side, side), pg.SRCALPHA)
         self.surface.fill((0, 0, 255))
     
-    @classmethod
-    def from_json(self, data:dict) -> 'Square':
+    @staticmethod
+    def from_json(data:dict) -> 'Square':
         return Square(
             id = data['id'],
             corner_1=data['corner_1'],

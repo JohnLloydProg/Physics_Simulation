@@ -3,6 +3,7 @@ import pygame as pg
 import pymunk.pygame_util
 pg.init()
 from constraints.damped_spring import DampedSpring
+from constraints.pin_joint import PinJoint
 from constraints.constraint import PymunkConstraint
 from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
@@ -50,6 +51,7 @@ class Simulation:
             'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear'),
+            'pinJoint':ToolButton(10, 170, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint')
         }
         self.options = pymunk.pygame_util.DrawOptions(self.window)
         self.options.flags = pymunk.pygame_util.DrawOptions.DRAW_CONSTRAINTS
@@ -118,14 +120,17 @@ class Simulation:
                         self.selected_object.set_position(position)
                     if (self.mouse.up(event, consumed)):
                         self.selected_object = None
-                if (self.tool == 'Spring'):
+                if (self.tool in ['Spring', 'PinJoint']):
                     offset = None
                     for obj in self.objects:
                         offset = obj.clicked(event, consumed)
                         if (offset):
                             offset = (-1*offset[0], -1*offset[1])
                             if (not self.current_constraint):
-                                self.current_constraint = DampedSpring(obj, offset)
+                                if (self.tool == 'Spring'):
+                                    self.current_constraint = DampedSpring(obj, offset)
+                                elif (self.tool == 'PinJoint'):
+                                    self.current_constraint = PinJoint(obj, offset)
                             else:
                                 self.current_constraint.set_body_b(obj, offset)
                                 self.constraints.append(self.current_constraint)
@@ -136,8 +141,10 @@ class Simulation:
 
                     if (not offset and self.mouse.down(event, consumed)):
                         if (not self.current_constraint):
-                            print('creating damped string')
-                            self.current_constraint = DampedSpring(self.space.static_body, self.mouse.position)
+                            if (self.tool == 'Spring'):
+                                self.current_constraint = DampedSpring(self.space.static_body, self.mouse.position)
+                            elif (self.tool == 'PinJoint'):
+                                self.current_constraint = PinJoint(self.space.static_body, self.mouse.position)
                         else:
                             self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
                             self.constraints.append(self.current_constraint)
@@ -196,10 +203,13 @@ class Tools:
         if (self.simulation.playing):
             for object in self.simulation.objects:
                 object.reset()
-            self.simulation.paused = True
-        else:
-            self.simulation.paused = False
         
+        for button in self.simulation.buttons.values():
+            if (isinstance(button, ToolButton)):
+                button.clickable = not button.clickable
+        clear_btn:ToolButton = self.simulation.buttons.get('clear')
+        clear_btn.clickable = not clear_btn.clickable
+        self.simulation.paused = not self.simulation.paused
         self.simulation.playing = not self.simulation.playing
         self.simulation.tool = None
     
@@ -280,21 +290,15 @@ class Tools:
         jsonObjects = data.get('objects')
         jsonConstraints = data.get('constraints')
         returnedData = {'objects':[], 'constraints':[]}
+        pymunk_objects:dict[str, PymunkObject] = {'Circle':Circle, 'Rectangle':Rectangle, 'Square':Square}
+        pymunk_constraints:dict[str, PymunkConstraint] = {'DampedSpring':DampedSpring, 'PinJoint':PinJoint}
         for jsonObject in jsonObjects:
-            pymunkObject = None
-            if jsonObject.get('type') == 'Circle':
-                pymunkObject = Circle.from_json(jsonObject)
-            elif jsonObject.get('type') == 'Rectangle':
-                pymunkObject = Rectangle.from_json(jsonObject)
-            elif jsonObject.get('type') == 'Square':
-                pymunkObject = Square.from_json(jsonObject)
+            pymunkObject = pymunk_objects.get(jsonObject.get('type')).from_json(jsonObject)
             if (pymunkObject):
                 pymunkObject.place(self.simulation.space)
                 returnedData['objects'].append(pymunkObject)
         for jsonConstraint in jsonConstraints:
-            pymunkConstraint = None
-            if jsonConstraint.get('type') == 'DampedSpring':
-                pymunkConstraint = DampedSpring.from_json(jsonConstraint, self.simulation.space, returnedData['objects'])
+            pymunkConstraint = pymunk_constraints.get(jsonConstraint.get('type')).from_json(jsonConstraint, self.simulation.space, returnedData['objects'])
             if (pymunkConstraint):
                 pymunkConstraint.place(self.simulation.space)
                 returnedData['constraints'].append(pymunkConstraint)

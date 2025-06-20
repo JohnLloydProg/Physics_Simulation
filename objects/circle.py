@@ -18,8 +18,8 @@ class Circle(PymunkObject):
         pg.draw.line(self.surface, (0, 0, 0), (radius, radius), (radius*2, radius), 3)
         self.mask = pg.mask.from_surface(self.surface)
     
-    @classmethod
-    def from_json(self, data:dict) -> 'Circle':
+    @staticmethod
+    def from_json(data:dict) -> 'Circle':
         return Circle(
             id = data['id'],
             position=data['position'],

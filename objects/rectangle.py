@@ -17,8 +17,8 @@ class Rectangle(PymunkObject):
         self.surface:pg.Surface = pg.Surface((width, height), pg.SRCALPHA)
         self.surface.fill((0, 255, 0))
     
-    @classmethod
-    def from_json(self, data:dict) -> 'Rectangle':
+    @staticmethod
+    def from_json(data:dict) -> 'Rectangle':
         return Rectangle(
             id = data['id'],
             corner_1=data['corner_1'],

@@ -40,6 +40,10 @@ class PymunkObject:
                     consumed.append(event)
                     return offset
         return None
+
+    @staticmethod
+    def from_json(data:dict) -> 'PymunkObject':
+        return
     
     def json(self) -> dict:
         return {

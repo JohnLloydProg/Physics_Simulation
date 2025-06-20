@@ -37,5 +37,22 @@ class PymunkConstraint:
         else:
             raise ValueError("Constraint not defined. Please define the constraint before removing it from the space.")
     
+    @staticmethod
+    def from_json(data:dict, space:pm.Space, objects:list):
+        if (data['body_a'] == 'space'):
+            body_a = space.static_body
+        else:
+            for object in objects:
+                if (object.id == data['body_a']):
+                    body_a = object
+                    break
+        if (data['body_b'] == 'space'):
+            body_b = space.static_body
+        else:
+            for object in objects:
+                if (object.id == data['body_b']):
+                    body_b = object
+        return (body_a, body_b)
+    
 
 
