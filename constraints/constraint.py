@@ -1,6 +1,7 @@
 import pygame as pg
 import pymunk as pm 
 from objects.pymunk_object import PymunkObject
+import math
 
 
 class PymunkConstraint:
@@ -15,6 +16,29 @@ class PymunkConstraint:
     def set_body_b(self, body_b: PymunkObject|pm.Body, anchor_b: tuple[float, float]) -> None:
         self.body_b = body_b
         self.anchor_b = anchor_b
+    
+    def clicked(self, event, consumed:list):
+        if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event not in consumed):
+            body_a:pm.Body = self.body_a.body if (isinstance(self.body_a, PymunkObject)) else self.body_a
+            body_b:pm.Body = self.body_b.body if (isinstance(self.body_b, PymunkObject)) else self.body_b
+            p1 = body_a.local_to_world(self.anchor_a)
+            p2 = body_b.local_to_world(self.anchor_b)
+            width = math.dist(p1 ,p2)
+            rise = p1[1] - p2[1]
+            run = p1[0] - p2[0]
+            angle = math.degrees(math.atan(abs(rise) / abs(run)))
+            surface = pg.Surface((width+20, 20), pg.SRCALPHA)
+            surface.fill((255, 0, 0))
+            surface = pg.transform.rotate(surface, angle * (1 if rise * run < 0 else -1))
+            position = (int((p1[0] + p2[0])/2), int((p1[1] + p2[1])/2))
+            rect = surface.get_rect(center=position)
+            if (rect.collidepoint(event.pos)):
+                cursor_mask = pg.Mask((3, 3), True)
+                mask = pg.mask.from_surface(surface)
+                if (mask.overlap(cursor_mask, (event.pos[0] - rect.x, event.pos[1] - rect.y))):
+                    consumed.append(event)
+                    return True
+        return False
     
     def json(self) -> dict:
         data = {

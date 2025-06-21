@@ -3,8 +3,8 @@ from settings import FONTS
 from typing import Callable
 
 class ButtonBehavior:
-    def __init__(self, left:float, right:float, width:float, height:float, on_press:Callable|None):
-        self.rect = pg.Rect(left, right, width, height)
+    def __init__(self, left:float, top:float, width:float, height:float, on_press:Callable|None):
+        self.rect = pg.Rect(left, top, width, height)
         self.clickable:bool = True
         self.on_press = on_press
     
@@ -13,13 +13,13 @@ class ButtonBehavior:
             if (self.rect.collidepoint(pg.mouse.get_pos()) and self.clickable):
                 if (self.on_press):
                     self.on_press()
-                    consumed.append(event)
+                consumed.append(event)
                 return True
         return False
 
 class ImageButton(ButtonBehavior):
-    def __init__(self, left:float, right:float, width:float, height:float, on_press:Callable, image:pg.Surface):
-        super().__init__(left, right, width, height, on_press)
+    def __init__(self, left:float, top:float, width:float, height:float, on_press:Callable, image:pg.Surface):
+        super().__init__(left, top, width, height, on_press)
         self.image = image
     
     def draw(self, window:pg.Surface) -> None:
@@ -27,15 +27,16 @@ class ImageButton(ButtonBehavior):
 
 
 class TextButton(ButtonBehavior):
-    def __init__(self, left: float, right: float, width: float, height: float, on_press: Callable, background_color:tuple[int, int, int], content:str):
-        super().__init__(left, right, width, height, on_press)
+    def __init__(self, left: float, top: float, width: float, height: float, on_press: Callable, background_color:tuple[int, int, int], content:str, size:str='large'):
+        super().__init__(left, top, width, height, on_press)
         self.surface = pg.Surface((width, height), pg.SRCALPHA)
         self.surface.fill((0, 0, 0, 100))
         self.background_color = background_color
         self.content = content
+        self.size = size
     
     def get_text(self) -> tuple[pg.Surface, pg.Rect]:
-        text = FONTS.get('large').render(self.content, True, (0, 0, 0))
+        text = FONTS.get(self.size).render(self.content, True, (0, 0, 0))
         return (text, text.get_rect(center=self.rect.center))
     
     def draw(self, window:pg.Surface) -> None:
@@ -47,8 +48,8 @@ class TextButton(ButtonBehavior):
             window.blit(text, rect)
 
 class ToolButton(TextButton):
-    def __init__(self, left:float, right:float, width:float, height:float, on_press:Callable, background_color:tuple[int, int, int], content:str=''):
-        super().__init__(left, right, width, height, on_press, background_color, content)
+    def __init__(self, left:float, top:float, width:float, height:float, on_press:Callable, background_color:tuple[int, int, int], content:str=''):
+        super().__init__(left, top, width, height, on_press, background_color, content)
     
     def get_text(self) -> tuple[pg.Surface, pg.Rect]:
         text = FONTS.get('small').render(self.content, True, (0, 0, 0))

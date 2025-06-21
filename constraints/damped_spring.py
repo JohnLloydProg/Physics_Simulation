@@ -6,8 +6,13 @@ import math
 
 
 class DampedSpring(PymunkConstraint):
-    def __init__(self, body_a: PymunkObject, anchor_a: tuple[float, float]):
+    def __init__(self, body_a: PymunkObject|pm.Body, anchor_a: tuple[float, float], stiffness:float=20, damping:float=0.3):
         super().__init__(body_a, anchor_a)
+        self.stiffness = stiffness
+        self.damping = damping
+
+    def properties(self) -> dict:
+        return {'stiffness':self.stiffness, 'damping':self.damping}
     
     def place(self, space: pm.Space) -> None:
         pos1_x = self.body_a.position[0] + self.anchor_a[0]
@@ -23,13 +28,15 @@ class DampedSpring(PymunkConstraint):
             self.anchor_a, 
             self.anchor_b, 
             rest_length=rest_length, 
-            stiffness=20, 
-            damping=0.3
+            stiffness=self.stiffness, 
+            damping=self.damping
         )
         return super().place(space)
 
     def json(self) -> dict:
         data = super().json()
+        data['stiffness'] = self.stiffness
+        data['damping'] = self.damping
         data['type'] = 'DampedSpring'
         return data
 
@@ -39,7 +46,7 @@ class DampedSpring(PymunkConstraint):
         anchor_a = tuple(data['anchor_a'])
         anchor_b = tuple(data['anchor_b'])
         
-        spring = DampedSpring(body_a, anchor_a)
+        spring = DampedSpring(body_a, anchor_a, stiffness=data['stiffness'], damping=data['damping'])
         spring.set_body_b(body_b, anchor_b)
         return spring
 

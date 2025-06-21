@@ -17,6 +17,9 @@ class PymunkObject:
         self.body_type = body_type
         self.z_index = 0
     
+    def properties(self) -> dict:
+        return {'mass':self.mass, 'friction':self.friction, 'elasticity':self.elasticity}
+    
     def place(self, space:pm.Space) -> None:
         self.body = pm.Body(body_type=self.body_type)
         self.body.position = self.position
@@ -66,6 +69,6 @@ class PymunkObject:
             space.remove(self.body, self.shape)
     
     def draw(self, window:pg.Surface) -> None:
-        surface = pg.transform.rotate(self.surface, math.degrees(self.body.angle) * -1) if (self.body) else self.surface
-        position = self.body.position if (self.body) else self.position
+        surface = pg.transform.rotate(self.surface, math.degrees(self.body.angle) * -1)
+        position = self.body.position
         window.blit(surface, surface.get_rect(center=position))

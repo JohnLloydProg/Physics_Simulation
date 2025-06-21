@@ -15,7 +15,6 @@ class Rectangle(PymunkObject):
 
         self.points = [(-width/2, -height/2), (width/2, -height/2), (width/2, height/2), (-width/2, height/2)]
         self.surface:pg.Surface = pg.Surface((width, height), pg.SRCALPHA)
-        self.surface.fill((0, 255, 0))
     
     @staticmethod
     def from_json(data:dict) -> 'Rectangle':
@@ -53,6 +52,11 @@ class Rectangle(PymunkObject):
 
         if (self.body):
             space.add(self.body, self.shape)
+    
+    def draw(self, window:pg.Surface) -> None:
+        color = (0, 255, 0) if (self.body.body_type == pm.Body.DYNAMIC) else (100, 255, 100)
+        self.surface.fill(color)
+        super().draw(window)
 
         
         

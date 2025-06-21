@@ -11,7 +11,6 @@ class Square(Rectangle):
 
         self.points = [(-side/2, -side/2), (side/2, -side/2), (side/2, side/2), (-side/2, side/2)]
         self.surface = pg.Surface((side, side), pg.SRCALPHA)
-        self.surface.fill((0, 0, 255))
     
     @staticmethod
     def from_json(data:dict) -> 'Square':
@@ -29,6 +28,11 @@ class Square(Rectangle):
         data = super().json()
         data['type'] = 'Square'
         return data
+    
+    def draw(self, window:pg.Surface) -> None:
+        color = (0, 0, 255) if (self.body.body_type == pm.Body.DYNAMIC) else (100, 100, 255)
+        self.surface.fill(color)
+        super().draw(window)
 
 
 
