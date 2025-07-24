@@ -4,6 +4,7 @@ import pymunk.pygame_util
 pg.init()
 from constraints.damped_spring import DampedSpring
 from constraints.pin_joint import PinJoint
+from constraints.gear_joint import GearJoint
 from constraints.constraint import PymunkConstraint
 from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
@@ -32,6 +33,9 @@ class Simulation:
     clicked = False
     file:str = None
     offset:tuple[int, int] = None
+    ctrl = False
+    group_select = []
+    group = 0
     id = 0
 
     def __init__(self):
@@ -48,22 +52,32 @@ class Simulation:
             'save':TextButton(420, 0, 50, 25, lambda: self.commands.save(self.file), (0, 255, 0), 'Save', 'small'),
             'load':TextButton(480, 0, 50, 25, lambda: self.commands.load(), (0, 255, 0), 'Load', 'small'),
             'delete':TextButton(660, 0, 50, 25, lambda: self.commands.delete(), (255, 0, 0), 'Delete', 'small'),
+            'move_front':TextButton(730, 0, 60, 25, lambda: self.selected_object.move_front(), (255, 255, 0), 'Move Front', 'small'),
+            'move_back':TextButton(800, 0, 60, 25, lambda: self.selected_object.move_back(), (255, 255, 0), 'Move Back', 'small'),
+            'not_collide':TextButton(870, 0, 100, 25, lambda: self.commands.not_collide(), (0, 255, 255), 'Not Collide', 'small'),
             'circle':ToolButton(10, 10, 50, 50, lambda: self.commands.changeTool('Circle'), (255, 0, 0), 'Circle'), 
             'square':ToolButton(70, 10, 50, 50, lambda: self.commands.changeTool('Square'), (0, 255, 0), 'Square'),
             'rectangle':ToolButton(130, 10, 50, 50, lambda: self.commands.changeTool('Rectangle'), (0, 0, 255), 'Rectangle'), 
             'move':ToolButton(130, 90, 50, 50, lambda: self.commands.changeTool('Move'), (0, 0, 255), 'Move'),
             'spring':ToolButton(10, 90, 50, 50, lambda: self.commands.changeTool('Spring'), (255, 0, 255), 'Spring'),
+            'pinJoint':ToolButton(10, 170, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
+            'anchor':ToolButton(70, 90, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor'),
+            'gearJoint': ToolButton(130, 90, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
             'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
-            'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear'),
-            'pinJoint':ToolButton(10, 170, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
-            'anchor':ToolButton(70, 90, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor')
+            'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear')
         }
         self.border_shapes = []
         self.options = pymunk.pygame_util.DrawOptions(self.window)
         self.options.flags = pymunk.pygame_util.DrawOptions.DRAW_CONSTRAINTS
+        h = self.space.add_collision_handler(1, 1)
+        h.begin = self.only_collide_same
         self.create_border(360, 25)
         self.loop()
+    
+    def only_collide_same(self, arbiter, space, data):
+        a, b = arbiter.shapes
+        return a.group_id != b.group_id
     
     def create_border(self, x, y):
         for border_shape in self.border_shapes:
@@ -94,6 +108,12 @@ class Simulation:
                     self.create_border(360, 25)
                 if (event.type == reset_click):
                     self.clicked = False
+                if (event.type == pg.KEYDOWN):
+                    if (event.key == pg.K_LCTRL or event.key == pg.K_RCTRL):
+                        self.ctrl = True
+                if (event.type == pg.KEYUP):
+                    if (event.key == pg.K_LCTRL or event.key == pg.K_RCTRL):
+                        self.ctrl = False
                 if (event.type == pg.USEREVENT + 2):
                     for key, value in event.dict.items():
                         if (self.selected_object):
@@ -117,7 +137,7 @@ class Simulation:
                         if (self.placeholder):
                             pymunkObject = None
                             if (self.tool == 'Circle'):
-                                pymunkObject = Circle(self.id, self.placeholder, math.dist(self.placeholder, self.mouse.position))
+                                pymunkObject = Circle(self.id, self.placeholder, math.dist(self.placeholder, self.mouse.position), group_id=self.group)
                             elif (self.tool == 'Rectangle'):
                                 pymunkObject = Rectangle(self.id, self.placeholder, self.mouse.position)
                             elif (self.tool == 'Square'):
@@ -126,6 +146,7 @@ class Simulation:
                                 pymunkObject.place(self.space)
                                 self.objects.append(pymunkObject)
                                 self.id += 1
+                                self.group += 1
                             self.placeholder = None
                             self.commands.record()
                             break
@@ -141,10 +162,13 @@ class Simulation:
                         break
 
                 offset = None
-                for obj in self.objects:
+                for obj in sorted(self.objects, key=lambda obj: obj.z_index, reverse=True):
                     offset = obj.clicked(event, consumed, self.space)
                     if (offset):
                         self.selected_object = obj
+                        if (self.ctrl):
+                            self.group_select.append(self.selected_object)
+                            print(self.group_select)
                         if (self.tool == 'Move' and not self.playing):
                             self.offset = offset
                             self.mouse.hold = True
@@ -155,11 +179,14 @@ class Simulation:
                                     self.current_constraint = DampedSpring(self.selected_object, offset)
                                 elif (self.tool == 'PinJoint'):
                                     self.current_constraint = PinJoint(self.selected_object, offset)
+                                elif (self.tool == 'GearJoint'):
+                                    self.current_constraint = GearJoint(self.selected_object, offset)
                             else:
-                                self.current_constraint.set_body_b(self.selected_object, offset)
-                                self.constraints.append(self.current_constraint)
-                                self.current_constraint.place(self.space)
-                                self.commands.record()
+                                if (self.selected_object != self.current_constraint.body_a):
+                                    self.current_constraint.set_body_b(self.selected_object, offset)
+                                    self.constraints.append(self.current_constraint)
+                                    self.current_constraint.place(self.space)
+                                    self.commands.record()
                                 self.current_constraint = None
                         elif (self.tool == 'Anchor' and not self.playing):
                             self.selected_object.body.body_type = pm.Body.STATIC
@@ -169,6 +196,9 @@ class Simulation:
                             self.clicked = True
                             pg.time.set_timer(reset_click, 500, 1)
                         break
+                if (not self.tool and not offset and event.type == pg.MOUSEBUTTONDOWN and event not in consumed):
+                    self.selected_object = None
+                    self.group_select.clear()
                             
 
                 if (self.tool == 'Move' and not self.playing):
@@ -190,11 +220,14 @@ class Simulation:
                                 self.current_constraint = DampedSpring(self.space.static_body, self.mouse.position)
                             elif (self.tool == 'PinJoint'):
                                 self.current_constraint = PinJoint(self.space.static_body, self.mouse.position)
+                            elif (self.tool == 'GearJoint'):
+                                self.current_constraint = GearJoint(self.space.static_body, self.mouse.position)
                         else:
-                            self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
-                            self.constraints.append(self.current_constraint)
-                            self.current_constraint.place(self.space)
-                            self.commands.record()
+                            if (self.current_constraint.body_a != self.space.static_body):
+                                self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
+                                self.constraints.append(self.current_constraint)
+                                self.current_constraint.place(self.space)
+                                self.commands.record()
                             self.current_constraint = None
 
                 if (self.playing):
@@ -382,6 +415,13 @@ class Tools:
         self.simulation.objects.clear()
         self.simulation.playing = False
         self.simulation.tool = None
+    
+    def not_collide(self):
+        for obj in self.simulation.group_select:
+            obj.group_id = self.simulation.group
+            obj.shape.group_id = self.simulation.group
+        self.simulation.group += 1
+
 
 
 if __name__ == '__main__':

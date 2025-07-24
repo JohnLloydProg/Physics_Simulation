@@ -15,13 +15,12 @@ class DampedSpring(PymunkConstraint):
         return {'stiffness':self.stiffness, 'damping':self.damping}
     
     def place(self, space: pm.Space) -> None:
+        body_a, body_b = super().place()
         pos1_x = self.body_a.position[0] + self.anchor_a[0]
         pos1_y = self.body_a.position[1] + self.anchor_a[1]
         pos2_x = self.body_b.position[0] + self.anchor_b[0]
         pos2_y = self.body_b.position[1] + self.anchor_b[1]
         rest_length = math.dist((pos1_x, pos1_y), (pos2_x, pos2_y))
-        body_a = self.body_a.body if (isinstance(self.body_a, PymunkObject)) else self.body_a
-        body_b = self.body_b.body if (isinstance(self.body_b, PymunkObject)) else self.body_b
         self.constraint = pm.DampedSpring(
             body_a, 
             body_b, 

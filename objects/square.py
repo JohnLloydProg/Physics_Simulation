@@ -5,8 +5,8 @@ import math
 
 
 class Square(Rectangle):
-    def __init__(self, id, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC):
-        super().__init__(id, corner_1, corner_2, mass, friction, elasticity, body_type)
+    def __init__(self, id, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC, group_id:int=0):
+        super().__init__(id, corner_1, corner_2, mass, friction, elasticity, body_type, group_id)
         side = (math.dist(corner_1, corner_2) * math.sqrt(2))/2
 
         self.points = [(-side/2, -side/2), (side/2, -side/2), (side/2, side/2), (-side/2, side/2)]
@@ -14,15 +14,18 @@ class Square(Rectangle):
     
     @staticmethod
     def from_json(data:dict) -> 'Square':
-        return Square(
+        square = Square(
             id = data['id'],
             corner_1=data['corner_1'],
             corner_2=data['corner_2'],
             mass=data['mass'],
             friction=data['friction'],
             elasticity=data['elasticity'],
-            body_type=data['body_type']
+            body_type=data['body_type'],
+            group_id=data['group_id']
         )
+        square.z_index = data['z_index']
+        return square
     
     def json(self) -> dict:
         data = super().json()

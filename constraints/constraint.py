@@ -26,7 +26,10 @@ class PymunkConstraint:
             width = math.dist(p1 ,p2)
             rise = p1[1] - p2[1]
             run = p1[0] - p2[0]
-            angle = math.degrees(math.atan(abs(rise) / abs(run)))
+            try:
+                angle = math.degrees(math.atan(abs(rise) / abs(run)))
+            except ZeroDivisionError:
+                angle = 90
             surface = pg.Surface((width+20, 20), pg.SRCALPHA)
             surface.fill((255, 0, 0))
             surface = pg.transform.rotate(surface, angle * (1 if rise * run < 0 else -1))
@@ -49,7 +52,12 @@ class PymunkConstraint:
         }
         return data
     
-    def place(self, space: pm.Space) -> None:
+    def place(self, space:pm.Space=None) -> None:
+        if (not space):
+            body_a = self.body_a.body if (isinstance(self.body_a, PymunkObject)) else self.body_a
+            body_b = self.body_b.body if (isinstance(self.body_b, PymunkObject)) else self.body_b
+            return (body_a, body_b)
+
         if self.constraint:
             space.add(self.constraint)
         else:

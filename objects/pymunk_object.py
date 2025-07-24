@@ -9,13 +9,14 @@ class PymunkObject:
     shape:pm.Shape
     position:tuple[int, int]
 
-    def __init__(self, id:int, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC):
+    def __init__(self, id:int, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC, group_id:int=0):
         self.id = id
         self.mass = mass
         self.friction = friction
         self.elasticity = elasticity
         self.body_type = body_type
         self.z_index = 0
+        self.group_id = group_id
     
     def properties(self) -> dict:
         return {'mass':self.mass, 'friction':self.friction, 'elasticity':self.elasticity}
@@ -26,15 +27,17 @@ class PymunkObject:
     
     def move_front(self):
         self.z_index += 1
+        print(self.z_index)
     
     def move_back(self):
         self.z_index -= 1
+        print(self.z_index)
     
     def clicked(self, event:pg.event.Event, consumed:list, space:pm.Space) -> tuple[float, float]:
         if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event.type not in consumed):
-            hit = space.point_query_nearest(pm.Vec2d(*event.pos), 0, pm.ShapeFilter())
-            if (hit):
-                if (hit.shape == self.shape):
+            hits = space.point_query(pm.Vec2d(*event.pos), 0, pm.ShapeFilter())
+            if (hits):
+                if (self.shape in list(map(lambda hit: hit.shape, hits))):
                     position = self.body.position
                     consumed.append(event)
                     return (position[0] - event.pos[0], position[1] - event.pos[1])
@@ -51,7 +54,9 @@ class PymunkObject:
             'mass':self.mass,
             'friction':self.friction,
             'elasticity':self.elasticity,
-            'body_type':self.body_type
+            'body_type':self.body_type,
+            'z_index':self.z_index,
+            'group_id':self.group_id
         }
 
     def set_position(self, new_pos:tuple[int, int]) -> None:

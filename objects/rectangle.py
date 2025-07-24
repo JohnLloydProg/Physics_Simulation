@@ -5,8 +5,8 @@ import math
 
 
 class Rectangle(PymunkObject):
-    def __init__(self, id, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC):
-        super().__init__(id, mass, friction, elasticity, body_type)
+    def __init__(self, id, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC, group_id:int=0):
+        super().__init__(id, mass, friction, elasticity, body_type, group_id)
         self.corner_1 = corner_1
         self.corner_2 = corner_2
         self.position = ((corner_1[0] + corner_2[0])/2,(corner_1[1] + corner_2[1])/2)
@@ -18,15 +18,18 @@ class Rectangle(PymunkObject):
     
     @staticmethod
     def from_json(data:dict) -> 'Rectangle':
-        return Rectangle(
+        rectangle = Rectangle(
             id = data['id'],
             corner_1=data['corner_1'],
             corner_2=data['corner_2'],
             mass=data['mass'],
             friction=data['friction'],
             elasticity=data['elasticity'],
-            body_type=data['body_type']
+            body_type=data['body_type'],
+            group_id=data['group_id']
         )
+        rectangle.z_index = data['z_index']
+        return rectangle
     
     def json(self) -> dict:
         data = super().json()
@@ -46,6 +49,8 @@ class Rectangle(PymunkObject):
         super().place(space)
 
         self.shape = pm.shapes.Poly(self.body, self.points)
+        self.shape.group_id = self.group_id
+        self.shape.collision_type = 1
         self.shape.mass = self.mass
         self.shape.friction = self.friction
         self.shape.elasticity = self.elasticity

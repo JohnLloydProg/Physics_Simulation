@@ -9,8 +9,7 @@ class PinJoint(PymunkConstraint):
         super().__init__(body_a, anchor_a)
     
     def place(self, space:pm.Space) -> None:
-        body_a = self.body_a.body if (isinstance(self.body_a, PymunkObject)) else self.body_a
-        body_b = self.body_b.body if (isinstance(self.body_b, PymunkObject)) else self.body_b
+        body_a, body_b = super().place()
         self.constraint = pm.PinJoint(body_a, body_b, self.anchor_a, self.anchor_b)
         return super().place(space)
 

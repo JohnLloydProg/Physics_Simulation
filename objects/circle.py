@@ -7,8 +7,8 @@ import math
 
 
 class Circle(PymunkObject):
-    def __init__(self, id:int, position:tuple[int, int], radius:float, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC):
-        super().__init__(id, mass, friction, elasticity, body_type)
+    def __init__(self, id:int, position:tuple[int, int], radius:float, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC, group_id:int=0):
+        super().__init__(id, mass, friction, elasticity, body_type, group_id)
         self.position = position
         self.radius = radius
 
@@ -18,15 +18,18 @@ class Circle(PymunkObject):
     
     @staticmethod
     def from_json(data:dict) -> 'Circle':
-        return Circle(
+        circle = Circle(
             id = data['id'],
             position=data['position'],
             radius=data['radius'],
             mass=data['mass'],
             friction=data['friction'],
             elasticity=data['elasticity'],
-            body_type=data['body_type']
+            body_type=data['body_type'],
+            group_id=data['group_id']
         )
+        circle.z_index = data['z_index']
+        return circle
     
     def json(self) -> dict:
         data = super().json()
@@ -38,6 +41,8 @@ class Circle(PymunkObject):
         super().place(space)
 
         self.shape = pm.Circle(self.body, self.radius)
+        self.shape.group_id = self.group_id
+        self.shape.collision_type = 1
         self.shape.mass = self.mass
         self.shape.friction = self.friction
         self.shape.elasticity = self.elasticity
