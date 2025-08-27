@@ -10,12 +10,13 @@ from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
 from objects.rectangle import Rectangle
 from objects.square import Square
-from ui import ToolButton, TextButton
+from ui import ToolButton, TextButton, ToggleButton, DropMenu
 from tk_dialogues import EditMenu
 from mouse import Mouse
 import math
 import pickle
 from tkinter import filedialog
+import commands
 
 reset_click = pg.USEREVENT + 1
 
@@ -33,6 +34,7 @@ class Simulation:
     clicked = False
     file:str = None
     offset:tuple[int, int] = None
+    default_collide = True
     ctrl = False
     group_select = []
     group = 0
@@ -44,17 +46,21 @@ class Simulation:
         self.space = pm.Space()
         self.mouse = Mouse()
         self.space.gravity = (0, 981)
-        self.commands = Tools(self)
+        self.commands:commands.Tools = commands.Tools(self)
         self.buttons = {
-            'undo':TextButton(540, 0, 50, 25, lambda: self.commands.undo(), (255, 0, 0), 'Undo', 'small'),
-            'redo':TextButton(600, 0, 50, 25, lambda: self.commands.redo(), (255, 0, 0), 'Redo', 'small'),
-            'save_as': TextButton(360, 0, 50, 25, lambda: self.commands.save(), (0, 0, 255), 'Save As', 'small'),
-            'save':TextButton(420, 0, 50, 25, lambda: self.commands.save(self.file), (0, 255, 0), 'Save', 'small'),
-            'load':TextButton(480, 0, 50, 25, lambda: self.commands.load(), (0, 255, 0), 'Load', 'small'),
-            'delete':TextButton(660, 0, 50, 25, lambda: self.commands.delete(), (255, 0, 0), 'Delete', 'small'),
-            'move_front':TextButton(730, 0, 60, 25, lambda: self.selected_object.move_front(), (255, 255, 0), 'Move Front', 'small'),
-            'move_back':TextButton(800, 0, 60, 25, lambda: self.selected_object.move_back(), (255, 255, 0), 'Move Back', 'small'),
-            'not_collide':TextButton(870, 0, 100, 25, lambda: self.commands.not_collide(), (0, 255, 255), 'Not Collide', 'small'),
+            'new':TextButton(360, 0, 50, 25, lambda: print('new'), (0, 255, 0), 'New', 'small'),
+            'load':TextButton(420, 0, 50, 25, self.commands.load, (0, 255, 0), 'Load', 'small'),
+            'close':TextButton(480, 0, 50, 25, lambda: print('close'), (255, 0, 0), 'Close', 'small'),
+            'save_as':TextButton(540, 0, 50, 25, self.commands.save, (0, 0, 255), 'Save As', 'small'),
+            'save':TextButton(600, 0, 50, 25, lambda: self.commands.save(self.file), (0, 255, 0), 'Save', 'small'),
+            'undo':TextButton(660, 0, 50, 25, self.commands.undo, (255, 0, 0), 'Undo', 'small'),
+            'redo':TextButton(720, 0, 50, 25, self.commands.redo, (255, 0, 0), 'Redo', 'small'),
+            'delete':TextButton(780, 0, 50, 25, self.commands.delete, (255, 0, 0), 'Delete', 'small'),
+            'move_front':TextButton(850, 0, 60, 25, lambda: self.selected_object.move_front(), (255, 255, 0), 'Move Front', 'small'),
+            'move_back':TextButton(920, 0, 60, 25, lambda: self.selected_object.move_back(), (255, 255, 0), 'Move Back', 'small'),
+            'not_collide':TextButton(990, 0, 100, 25, self.commands.not_collide, (0, 255, 255), 'Not Collide', 'small'),
+            'collide': TextButton(1100, 0, 100, 25, self.commands.collide, (0, 255, 255), 'Collide', 'small'),
+            'toggle_collision': ToggleButton(1210, 0, 100, 25, lambda down: setattr(self, 'default_collide', not down), (0, 255, 255), ('Colliding', 'Not Colliding'), 'small'),
             'circle':ToolButton(10, 10, 50, 50, lambda: self.commands.changeTool('Circle'), (255, 0, 0), 'Circle'), 
             'square':ToolButton(70, 10, 50, 50, lambda: self.commands.changeTool('Square'), (0, 255, 0), 'Square'),
             'rectangle':ToolButton(130, 10, 50, 50, lambda: self.commands.changeTool('Rectangle'), (0, 0, 255), 'Rectangle'), 
@@ -62,10 +68,13 @@ class Simulation:
             'spring':ToolButton(10, 90, 50, 50, lambda: self.commands.changeTool('Spring'), (255, 0, 255), 'Spring'),
             'pinJoint':ToolButton(10, 170, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
             'anchor':ToolButton(70, 90, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor'),
-            'gearJoint': ToolButton(130, 90, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
+            'gearJoint': ToolButton(130, 170, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
             'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear')
+        }
+        self.drop_menus = {
+            'file':DropMenu(1320, 0, 100, 25, ['New', 'Load', 'Close', 'Save As', 'Save'], lambda option: print(option), (200, 200, 200), 'File'),
         }
         self.border_shapes = []
         self.options = pymunk.pygame_util.DrawOptions(self.window)
@@ -111,9 +120,20 @@ class Simulation:
                 if (event.type == pg.KEYDOWN):
                     if (event.key == pg.K_LCTRL or event.key == pg.K_RCTRL):
                         self.ctrl = True
+                    elif (event.key == pg.K_LSHIFT or event.key == pg.K_RSHIFT):
+                        self.shift = True
+                    else:
+                        for shortcut, func in self.commands.shorcuts.items():
+                            if (shortcut == 'delete' and event.key == pg.K_DELETE):
+                                func()
+                            elif ('ctrl' in shortcut and self.ctrl):
+                                if (pg.key.name(event.key) in shortcut):
+                                    func()
                 if (event.type == pg.KEYUP):
                     if (event.key == pg.K_LCTRL or event.key == pg.K_RCTRL):
                         self.ctrl = False
+                    if (event.key == pg.K_LSHIFT or event.key == pg.K_RSHIFT):
+                        self.shift = False
                 if (event.type == pg.USEREVENT + 2):
                     for key, value in event.dict.items():
                         if (self.selected_object):
@@ -126,6 +146,9 @@ class Simulation:
                 consumed = []
                 for button in self.buttons.values():
                     button.clicked(event, consumed)
+
+                for drop_menu in self.drop_menus.values():
+                    drop_menu.handle(event, consumed)
                 
                 self.mouse.move(event)
                 if (self.tool in ['Circle', 'Rectangle', 'Square'] and not self.playing):
@@ -139,40 +162,51 @@ class Simulation:
                             if (self.tool == 'Circle'):
                                 pymunkObject = Circle(self.id, self.placeholder, math.dist(self.placeholder, self.mouse.position), group_id=self.group)
                             elif (self.tool == 'Rectangle'):
-                                pymunkObject = Rectangle(self.id, self.placeholder, self.mouse.position)
+                                pymunkObject = Rectangle(self.id, self.placeholder, self.mouse.position, group_id=self.group)
                             elif (self.tool == 'Square'):
-                                pymunkObject = Square(self.id, self.placeholder, self.mouse.position)
+                                pymunkObject = Square(self.id, self.placeholder, self.mouse.position, group_id=self.group)
                             if (pymunkObject):
                                 pymunkObject.place(self.space)
                                 self.objects.append(pymunkObject)
                                 self.id += 1
-                                self.group += 1
+                                if (self.default_collide):
+                                    self.group += 1
                             self.placeholder = None
                             self.commands.record()
                             break
-
+                
+                #Handles constraint selection and interaction
+                constraint_clicked = False
                 for constraint in self.constraints:
                     if (constraint.clicked(event, consumed)):
+                        constraint_clicked = True
                         self.selected_constraint = constraint
+                        # If the tool is not set, open the edit menu
                         if (not self.tool and not self.playing):
                             if (self.clicked):
                                 EditMenu(self.selected_constraint.properties())
                             self.clicked = True
                             pg.time.set_timer(reset_click, 500, 1)
                         break
-
+                # If no constraint was clicked, reset the selected constraint
+                if (not constraint_clicked):
+                    self.selected_constraint = None
+                
+                # Handles object selection and interaction
                 offset = None
                 for obj in sorted(self.objects, key=lambda obj: obj.z_index, reverse=True):
                     offset = obj.clicked(event, consumed, self.space)
                     if (offset):
                         self.selected_object = obj
+                        # Add to group selection if ctrl is pressed
                         if (self.ctrl):
                             self.group_select.append(self.selected_object)
-                            print(self.group_select)
+                        # Selects the objects for movement 
                         if (self.tool == 'Move' and not self.playing):
                             self.offset = offset
                             self.mouse.hold = True
-                        elif (self.tool in ['Spring', 'PinJoint'] and not self.playing):
+                        # Add constraints to the selected object
+                        elif (self.tool in ['Spring', 'PinJoint', 'GearJoint'] and not self.playing):
                             offset = (-1*offset[0], -1*offset[1])
                             if (not self.current_constraint):
                                 if (self.tool == 'Spring'):
@@ -188,19 +222,24 @@ class Simulation:
                                     self.current_constraint.place(self.space)
                                     self.commands.record()
                                 self.current_constraint = None
+                        # Anchor the selected object
                         elif (self.tool == 'Anchor' and not self.playing):
                             self.selected_object.body.body_type = pm.Body.STATIC
+                            self.commands.record()
+                        # If the tool is not set, open the edit menu
                         if (not self.tool and not self.playing):
                             if (self.clicked):
                                 EditMenu(self.selected_object.properties())
                             self.clicked = True
                             pg.time.set_timer(reset_click, 500, 1)
                         break
+                
+                # If no object was clicked, reset the selected object
                 if (not self.tool and not offset and event.type == pg.MOUSEBUTTONDOWN and event not in consumed):
                     self.selected_object = None
                     self.group_select.clear()
-                            
 
+                # Moving objects around the space
                 if (self.tool == 'Move' and not self.playing):
                     if (self.selected_object and self.mouse.dragging(event)):
                         position = (self.mouse.position[0] + self.offset[0], self.mouse.position[1] + self.offset[1])
@@ -212,7 +251,8 @@ class Simulation:
                                 constraint.remove(self.space)
                                 constraint.place(self.space)
                         self.selected_object = None
-
+                
+                # Adding constraints on the space
                 if (self.tool in ['Spring', 'PinJoint'] and not self.playing):
                     if (not offset and self.mouse.down(event, consumed)):
                         if (not self.current_constraint):
@@ -220,8 +260,6 @@ class Simulation:
                                 self.current_constraint = DampedSpring(self.space.static_body, self.mouse.position)
                             elif (self.tool == 'PinJoint'):
                                 self.current_constraint = PinJoint(self.space.static_body, self.mouse.position)
-                            elif (self.tool == 'GearJoint'):
-                                self.current_constraint = GearJoint(self.space.static_body, self.mouse.position)
                         else:
                             if (self.current_constraint.body_a != self.space.static_body):
                                 self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
@@ -230,6 +268,7 @@ class Simulation:
                                 self.commands.record()
                             self.current_constraint = None
 
+                # Interacting with the objects using the mouse
                 if (self.playing):
                     for obj in self.objects:
                         offset = obj.clicked(event, consumed, self.space)
@@ -239,7 +278,15 @@ class Simulation:
                             break
                     if (event.type == pg.MOUSEBUTTONUP and self.mouse.joint):
                         self.mouse.unjoin(self.space)
-                    
+            
+            if (not self.playing):
+                self.buttons.get('undo').clickable = len(self.commands.undoStack) > 1
+                self.buttons.get('redo').clickable = len(self.commands.redoStack) > 0
+                self.buttons.get('delete').clickable = self.selected_object is not None or self.selected_constraint is not None
+                self.buttons.get('move_front').clickable = self.selected_object is not None
+                self.buttons.get('move_back').clickable = self.selected_object is not None
+                self.buttons.get('not_collide').clickable = len(self.group_select) > 0
+                self.buttons.get('collide').clickable = len(self.group_select) > 0
             
             self.draw()
             self.clock.tick(60)
@@ -257,6 +304,9 @@ class Simulation:
             if (isinstance(button, ToolButton)):
                 if (button.content == self.tool):
                     pg.draw.rect(self.window, (0, 0, 0), button.rect, width=2)
+        
+        for drop_menu in self.drop_menus.values():
+            drop_menu.draw(self.window)
 
         if (self.placeholder):
             if (self.tool == 'Circle'):
@@ -274,154 +324,6 @@ class Simulation:
         
         self.space.debug_draw(self.options)
         pg.display.update()
-
-
-class Tools:
-    undoStack = []
-    redoStack = []
-
-    def __init__(self, simulation:Simulation):
-        self.simulation = simulation
-        self.undoStack = [self.encrypt()]
-    
-    def delete(self):
-        if (self.simulation.selected_object and not self.simulation.tool):
-            self.simulation.selected_object.remove(self.simulation.space)
-            self.simulation.objects.remove(self.simulation.selected_object)
-            for constraint in self.simulation.constraints:
-                if  constraint.body_a == self.simulation.selected_object or constraint.body_b == self.simulation.selected_object:
-                    constraint.remove(self.simulation.space)
-                    self.simulation.constraints.remove(constraint)
-
-    
-    def changeTool(self, tool):
-        if (tool != self.simulation.tool):
-            self.simulation.tool = tool
-        else:
-            self.simulation.tool = None
-        print(self.simulation.tool)
-    
-    def start(self):
-        if (self.simulation.playing):
-            for object in self.simulation.objects:
-                object.reset()
-                self.simulation.space.reindex_shapes_for_body(object.body)
-        
-        for button in self.simulation.buttons.values():
-            if (isinstance(button, ToolButton)):
-                button.clickable = not button.clickable
-        clear_btn:ToolButton = self.simulation.buttons.get('clear')
-        clear_btn.clickable = not clear_btn.clickable
-        self.simulation.playing = not self.simulation.playing
-        self.simulation.tool = None
-    
-    def pause(self):
-        self.simulation.playing = not self.simulation.playing
-        self.simulation.tool = None
-    
-    def load(self):
-        try:
-            asked_file = filedialog.askopenfilename(filetypes=[('Physics Files', '*.phys')])
-            with open(asked_file, 'rb') as f:
-                read_data = f.read()
-            self.simulation.file = asked_file
-            pg.display.set_caption(asked_file)
-        except FileNotFoundError as e:
-            print(e)
-            return
-        
-        print('loadinggg')
-        self.simulation.objects = self.decrypt(read_data)
-
-    def save(self, file:str=''):
-        asked_file = filedialog.asksaveasfilename(filetypes=[('Physics Files', '*.phys')]) if not file else file
-        file_names = asked_file.split('.')
-        if (len(file_names) > 1):
-            asked_file = file_names.pop(0)
-        data = self.encrypt()
-        
-        try:
-            with open(f'{asked_file}.phys', 'rb') as f:
-                read_data = f.read()
-            if (read_data != data):
-                print('saving')
-                with open(f'{asked_file}.phys', 'wb') as f:
-                    f.write(data)
-        except FileNotFoundError as e:
-            print('creating file')
-            with open(f'{asked_file}.phys', 'wb') as f:
-                f.write(data)
-            self.simulation.file = asked_file
-            pg.display.set_caption(asked_file)
-        
-
-    def undo(self):
-        if (len(self.undoStack) > 1):
-            action = self.undoStack.pop()
-            self.redoStack.append(action)
-            self.clear()
-            data = self.decrypt(self.undoStack[-1])
-            self.simulation.objects = data.get('objects', [])
-            self.simulation.constraints = data.get('constraints', [])
-        self.simulation.tool = None
-    
-    def redo(self):
-        if (self.redoStack):
-            action = self.redoStack.pop()
-            self.undoStack.append(action)
-            self.clear()
-            data = self.decrypt(self.undoStack[-1])
-            self.simulation.objects = data.get('objects', [])
-            self.simulation.constraints = data.get('constraints', [])
-        self.simulation.tool = None
-    
-    def record(self):
-        self.undoStack.append(self.encrypt())
-        self.redoStack.clear()
-
-    def encrypt(self):
-        data = {'objects': [], 'constraints': []}
-        for pymunkObject in self.simulation.objects:
-            data['objects'].append(pymunkObject.json())
-        for pymunkConstraint in self.simulation.constraints:
-            data['constraints'].append(pymunkConstraint.json())
-        return pickle.dumps(data)
-    
-    def decrypt(self, data):
-        data = pickle.loads(data)
-        jsonObjects = data.get('objects')
-        jsonConstraints = data.get('constraints')
-        returnedData = {'objects':[], 'constraints':[]}
-        pymunk_objects:dict[str, PymunkObject] = {'Circle':Circle, 'Rectangle':Rectangle, 'Square':Square}
-        pymunk_constraints:dict[str, PymunkConstraint] = {'DampedSpring':DampedSpring, 'PinJoint':PinJoint}
-        for jsonObject in jsonObjects:
-            pymunkObject = pymunk_objects.get(jsonObject.get('type')).from_json(jsonObject)
-            if (pymunkObject):
-                pymunkObject.place(self.simulation.space)
-                returnedData['objects'].append(pymunkObject)
-        for jsonConstraint in jsonConstraints:
-            pymunkConstraint = pymunk_constraints.get(jsonConstraint.get('type')).from_json(jsonConstraint, self.simulation.space, returnedData['objects'])
-            if (pymunkConstraint):
-                pymunkConstraint.place(self.simulation.space)
-                returnedData['constraints'].append(pymunkConstraint)
-        return returnedData
-
-    def clear(self):
-        for constraint in self.simulation.constraints:
-            constraint.remove(self.simulation.space)
-
-        for object in self.simulation.objects:
-            object.remove(self.simulation.space)
-        self.simulation.objects.clear()
-        self.simulation.playing = False
-        self.simulation.tool = None
-    
-    def not_collide(self):
-        for obj in self.simulation.group_select:
-            obj.group_id = self.simulation.group
-            obj.shape.group_id = self.simulation.group
-        self.simulation.group += 1
-
 
 
 if __name__ == '__main__':

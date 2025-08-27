@@ -5,14 +5,11 @@ from constraints.constraint import PymunkConstraint
 
 
 class GearJoint(PymunkConstraint):
-    def __init__(self, body_a:PymunkObject|pm.Body, phase:float=0.3, ratio:float=0.3):
-        super().__init__(body_a, None)
+    def __init__(self, body_a:PymunkObject|pm.Body, anchor_a:tuple[float, float], phase:float=0.3, ratio:float=0.3):
+        super().__init__(body_a, anchor_a)
         self.phase = phase
         self.ratio = ratio
 
-    def set_body_b(self, body_b):
-        return super().set_body_b(body_b, None)
-    
     def properties(self) -> dict:
         return {'phase':self.phase, 'ratio':self.ratio}
 
