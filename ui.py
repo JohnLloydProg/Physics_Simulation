@@ -7,10 +7,18 @@ class ButtonBehavior:
         self.rect = pg.Rect(left, top, width, height)
         self.clickable:bool = True
         self.on_press = on_press
+        self.inside = False
     
     def clicked(self, event:pg.event.Event, consumed:list) -> bool:
+        mouse = pg.mouse.get_pos()
+        if (event.type == pg.MOUSEMOTION and self.rect.collidepoint(mouse) and self.clickable):
+            pg.mouse.set_cursor(pg.SYSTEM_CURSOR_HAND)
+            self.inside = True
+        elif (self.inside and not self.rect.collidepoint(mouse)):
+            pg.mouse.set_cursor(pg.SYSTEM_CURSOR_ARROW)
+            self.inside = False
         if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event not in consumed):
-            if (self.rect.collidepoint(pg.mouse.get_pos()) and self.clickable):
+            if (self.rect.collidepoint(mouse) and self.clickable):
                 if (self.on_press):
                     self.on_press()
                 consumed.append(event)
@@ -74,8 +82,6 @@ class ToggleButton(ButtonBehavior):
     
     def draw(self, window:pg.Surface) -> None:
         pg.draw.rect(window, self.background_color, self.rect)
-        if (self.down):
-            window.blit(self.surface, self.rect)
         if (self.content):
             text, rect = self.get_text()
             window.blit(text, rect)
@@ -101,6 +107,7 @@ class DropMenu:
         self.dropdown_width = max(map(lambda option: FONTS.get('small').size(option)[0], options)) + 10
         self.dropdown_height = 0
         self.on_value = on_value
+        self.hover = None
         for i, option in enumerate(options):
             text = FONTS.get('small').render(option, True, (0, 0, 0))
             text_rect = pg.Rect(left, self.rect.bottom + (i * (text.get_height() + 10)), width, text.get_height() + 10)
@@ -112,14 +119,20 @@ class DropMenu:
             mouse_pos = pg.mouse.get_pos()
             if (self.rect.collidepoint(mouse_pos)):
                 self.expanded = True
-            elif (self.expanded):
-                if not (self.rect.left < mouse_pos[0] < self.rect.left + self.dropdown_width and self.rect.top < mouse_pos[1] < self.rect.bottom + self.dropdown_height):
-                    self.expanded = False
+            elif (self.expanded or self.rect.collidepoint(mouse_pos)):
+                self.hover = None
+                for option, _, text_rect in self.selections:
+                    if (text_rect.collidepoint(mouse_pos)):
+                        self.hover = option
+                        break
+                self.expanded = self.hover is not None
         if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event not in consumed):
             if (self.expanded):
                 mouse_pos = pg.mouse.get_pos()
+                self.hover = None
                 for option, _, text_rect in self.selections:
                     if (text_rect.collidepoint(mouse_pos)):
+                        
                         self.on_value(option)
                         consumed.append(event)
                         self.expanded = False
@@ -134,6 +147,9 @@ class DropMenu:
         window.blit(text, text_rect)
         if (self.expanded):
             for option, text, text_rect in self.selections:
-                pg.draw.rect(window, self.background, text_rect)
+                if (option == self.hover):
+                    pg.draw.rect(window, tuple(color - 50 for color in self.background), text_rect)
+                else:
+                    pg.draw.rect(window, self.background, text_rect)
                 window.blit(text, text.get_rect(midleft=(text_rect.left + 5, text_rect.centery)))
         

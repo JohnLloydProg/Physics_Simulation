@@ -36,6 +36,7 @@ class Simulation:
     offset:tuple[int, int] = None
     default_collide = True
     ctrl = False
+    shift = False
     group_select = []
     group = 0
     id = 0
@@ -48,33 +49,26 @@ class Simulation:
         self.space.gravity = (0, 981)
         self.commands:commands.Tools = commands.Tools(self)
         self.buttons = {
-            'new':TextButton(360, 0, 50, 25, lambda: print('new'), (0, 255, 0), 'New', 'small'),
-            'load':TextButton(420, 0, 50, 25, self.commands.load, (0, 255, 0), 'Load', 'small'),
-            'close':TextButton(480, 0, 50, 25, lambda: print('close'), (255, 0, 0), 'Close', 'small'),
-            'save_as':TextButton(540, 0, 50, 25, self.commands.save, (0, 0, 255), 'Save As', 'small'),
-            'save':TextButton(600, 0, 50, 25, lambda: self.commands.save(self.file), (0, 255, 0), 'Save', 'small'),
-            'undo':TextButton(660, 0, 50, 25, self.commands.undo, (255, 0, 0), 'Undo', 'small'),
-            'redo':TextButton(720, 0, 50, 25, self.commands.redo, (255, 0, 0), 'Redo', 'small'),
-            'delete':TextButton(780, 0, 50, 25, self.commands.delete, (255, 0, 0), 'Delete', 'small'),
-            'move_front':TextButton(850, 0, 60, 25, lambda: self.selected_object.move_front(), (255, 255, 0), 'Move Front', 'small'),
-            'move_back':TextButton(920, 0, 60, 25, lambda: self.selected_object.move_back(), (255, 255, 0), 'Move Back', 'small'),
-            'not_collide':TextButton(990, 0, 100, 25, self.commands.not_collide, (0, 255, 255), 'Not Collide', 'small'),
-            'collide': TextButton(1100, 0, 100, 25, self.commands.collide, (0, 255, 255), 'Collide', 'small'),
-            'toggle_collision': ToggleButton(1210, 0, 100, 25, lambda down: setattr(self, 'default_collide', not down), (0, 255, 255), ('Colliding', 'Not Colliding'), 'small'),
-            'circle':ToolButton(10, 10, 50, 50, lambda: self.commands.changeTool('Circle'), (255, 0, 0), 'Circle'), 
-            'square':ToolButton(70, 10, 50, 50, lambda: self.commands.changeTool('Square'), (0, 255, 0), 'Square'),
-            'rectangle':ToolButton(130, 10, 50, 50, lambda: self.commands.changeTool('Rectangle'), (0, 0, 255), 'Rectangle'), 
-            'move':ToolButton(130, 90, 50, 50, lambda: self.commands.changeTool('Move'), (0, 0, 255), 'Move'),
-            'spring':ToolButton(10, 90, 50, 50, lambda: self.commands.changeTool('Spring'), (255, 0, 255), 'Spring'),
-            'pinJoint':ToolButton(10, 170, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
-            'anchor':ToolButton(70, 90, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor'),
-            'gearJoint': ToolButton(130, 170, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
+            'move_front':TextButton(150, 0, 70, 25, lambda: self.selected_object.move_front(), (255, 255, 0), 'Move Front', 'small'),
+            'move_back':TextButton(230, 0, 70, 25, lambda: self.selected_object.move_back(), (255, 255, 0), 'Move Back', 'small'),
+            'not_collide':TextButton(310, 0, 100, 25, self.commands.not_collide, (0, 255, 255), 'Not Collide', 'small'),
+            'collide': TextButton(420, 0, 100, 25, self.commands.collide, (0, 255, 255), 'Collide', 'small'),
+            'toggle_collision': ToggleButton(530, 0, 100, 25, lambda down: setattr(self, 'default_collide', not down), (0, 255, 255), ('Colliding', 'Not Colliding'), 'small'),
+            'circle':ToolButton(10, 35, 50, 50, lambda: self.commands.changeTool('Circle'), (255, 0, 0), 'Circle'), 
+            'square':ToolButton(70, 35, 50, 50, lambda: self.commands.changeTool('Square'), (0, 255, 0), 'Square'),
+            'rectangle':ToolButton(130, 35, 50, 50, lambda: self.commands.changeTool('Rectangle'), (0, 0, 255), 'Rectangle'), 
+            'move':ToolButton(130, 115, 50, 50, lambda: self.commands.changeTool('Move'), (0, 0, 255), 'Move'),
+            'spring':ToolButton(10, 115, 50, 50, lambda: self.commands.changeTool('Spring'), (255, 0, 255), 'Spring'),
+            'pinJoint':ToolButton(10, 195, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
+            'anchor':ToolButton(70, 115, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor'),
+            'gearJoint': ToolButton(130, 195, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
             'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear')
         }
         self.drop_menus = {
-            'file':DropMenu(1320, 0, 100, 25, ['New', 'Load', 'Close', 'Save As', 'Save'], lambda option: print(option), (200, 200, 200), 'File'),
+            'file':DropMenu(0, 0, 70, 25, ['New', 'Load', 'Save As', 'Save'], self.commands.file_select, (200, 200, 200), 'File'),
+            'edit':DropMenu(70, 0, 70, 25, ['Undo', 'Redo', 'Delete'], self.commands.edit_select, (200, 200, 200), 'Edit')
         }
         self.border_shapes = []
         self.options = pymunk.pygame_util.DrawOptions(self.window)
@@ -127,6 +121,8 @@ class Simulation:
                             if (shortcut == 'delete' and event.key == pg.K_DELETE):
                                 func()
                             elif ('ctrl' in shortcut and self.ctrl):
+                                if ('shift' in shortcut and not self.shift):
+                                    continue
                                 if (pg.key.name(event.key) in shortcut):
                                     func()
                 if (event.type == pg.KEYUP):
@@ -144,11 +140,11 @@ class Simulation:
                             setattr(self.selected_constraint.constraint, key, float(value))
                     
                 consumed = []
-                for button in self.buttons.values():
-                    button.clicked(event, consumed)
-
                 for drop_menu in self.drop_menus.values():
                     drop_menu.handle(event, consumed)
+
+                for button in self.buttons.values():
+                    button.clicked(event, consumed)
                 
                 self.mouse.move(event)
                 if (self.tool in ['Circle', 'Rectangle', 'Square'] and not self.playing):
@@ -280,9 +276,6 @@ class Simulation:
                         self.mouse.unjoin(self.space)
             
             if (not self.playing):
-                self.buttons.get('undo').clickable = len(self.commands.undoStack) > 1
-                self.buttons.get('redo').clickable = len(self.commands.redoStack) > 0
-                self.buttons.get('delete').clickable = self.selected_object is not None or self.selected_constraint is not None
                 self.buttons.get('move_front').clickable = self.selected_object is not None
                 self.buttons.get('move_back').clickable = self.selected_object is not None
                 self.buttons.get('not_collide').clickable = len(self.group_select) > 0

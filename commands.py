@@ -2,6 +2,7 @@ import pygame as pg
 from main import Simulation
 from ui import ToolButton
 from tkinter import filedialog
+from tkinter import messagebox
 import pickle
 from constraints.damped_spring import DampedSpring
 from constraints.pin_joint import PinJoint
@@ -25,9 +26,40 @@ class Tools:
             'delete':self.delete,
             'ctrl+z':self.undo,
             'ctrl+y':self.redo,
-            'ctrl+s':self.save,
+            'ctrl+s':lambda: self.save(self.simulation.file),
+            'ctrl+shift+s':self.save,
             'ctrl+o':self.load,
+            'ctrl+[':lambda: self.simulation.selected_object.move_back() if self.simulation.selected_object else None,
+            'ctrl+]':lambda: self.simulation.selected_object.move_front() if self.simulation.selected_object else None,
         }
+    
+    def file_select(self, option:str):
+        if ('New' in option):
+            if ((self.simulation.objects or self.simulation.constraints)):
+                response = messagebox.askyesnocancel('Save', 'Do you want to save your current simulation?')
+                if (response):
+                    self.save(self.simulation.file)
+            self.clear()
+            self.simulation.file = ''
+            pg.display.set_caption('Physics Simulation')
+        elif ('Load' in option):
+            if ((self.simulation.objects or self.simulation.constraints)):
+                response = messagebox.askyesnocancel('Save', 'Do you want to save your current simulation?')
+                if (response):
+                    self.save(self.simulation.file)
+            self.load()
+        elif ('Save As' in option):
+            self.save()
+        elif ('Save' in option):
+            self.save(self.simulation.file)
+    
+    def edit_select(self, option:str):
+        if ('Undo' in option):
+            self.undo()
+        elif ('Redo' in option):
+            self.redo()
+        elif ('Delete' in option):
+            self.delete()
     
     def delete(self):
         if (self.simulation.selected_object and not self.simulation.tool):
@@ -82,8 +114,10 @@ class Tools:
             print(e)
             return
         
-        print('loadinggg')
-        self.simulation.objects = self.decrypt(read_data)
+        data = self.decrypt(read_data)
+        self.simulation.objects = data['objects']
+        self.simulation.constraints = data['constraints']
+        pg.display.set_caption(asked_file)
 
     def save(self, file:str=''):
         asked_file = filedialog.asksaveasfilename(filetypes=[('Physics Files', '*.phys')]) if not file else file
@@ -141,7 +175,7 @@ class Tools:
             data['constraints'].append(pymunkConstraint.json())
         return pickle.dumps(data)
     
-    def decrypt(self, data):
+    def decrypt(self, data) -> dict:
         data = pickle.loads(data)
         jsonObjects = data.get('objects')
         jsonConstraints = data.get('constraints')
