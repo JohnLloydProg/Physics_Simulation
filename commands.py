@@ -153,6 +153,7 @@ class Tools:
             data = self.decrypt(self.undoStack[-1])
             self.simulation.objects = data.get('objects', [])
             self.simulation.constraints = data.get('constraints', [])
+            self.simulation.pins = data.get('pins', [])
         self.simulation.tool = None
     
     def redo(self):
@@ -163,6 +164,7 @@ class Tools:
             data = self.decrypt(self.undoStack[-1])
             self.simulation.objects = data.get('objects', [])
             self.simulation.constraints = data.get('constraints', [])
+            self.simulation.pins = data.get('pins', [])
         self.simulation.tool = None
     
     def record(self):

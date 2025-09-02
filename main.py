@@ -250,7 +250,7 @@ class Simulation:
                 # Moving objects around the space
                 if (self.tool == 'Move' and not self.playing):
                     if (self.selected_object and self.mouse.dragging(event)):
-                        position = (self.mouse.position[0] + self.offset[0], self.mouse.position[1] + self.offset[1])
+                        position = (self.mouse.position[0] - self.offset[0], self.mouse.position[1] - self.offset[1])
                         self.selected_object.set_position(position)
                         self.space.reindex_shapes_for_body(self.selected_object.body)
                     if (self.mouse.up(event, consumed)):

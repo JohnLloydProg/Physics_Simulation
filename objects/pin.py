@@ -41,7 +41,7 @@ class Pin:
                 if (isinstance(pymunk_object, PymunkObject) and pymunk_object.id == data['body']):
                     body = pymunk_object
                     break
-        return Pin(body=body, offsset=data['offset'])
+        return Pin(body=body, offset=data['offset'])
 
     def draw(self, window:pg.Surface) -> None:
         position = self.world_position()
