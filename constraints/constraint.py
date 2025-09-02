@@ -12,6 +12,9 @@ class PymunkConstraint:
         self.body_a = body_a
         self.anchor_a = anchor_a
         self.constraint = None
+
+    def properties(self) -> dict:
+        return {}
     
     def set_body_b(self, body_b: PymunkObject|pm.Body, anchor_b: tuple[float, float]) -> None:
         self.body_b = body_b

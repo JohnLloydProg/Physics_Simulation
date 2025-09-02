@@ -34,13 +34,12 @@ class PymunkObject:
         print(self.z_index)
     
     def clicked(self, event:pg.event.Event, consumed:list, space:pm.Space) -> tuple[float, float]:
-        if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event.type not in consumed):
+        if (event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and event not in consumed):
             hits = space.point_query(pm.Vec2d(*event.pos), 0, pm.ShapeFilter())
             if (hits):
                 if (self.shape in list(map(lambda hit: hit.shape, hits))):
-                    position = self.body.position
                     consumed.append(event)
-                    return (position[0] - event.pos[0], position[1] - event.pos[1])
+                    return self.body.world_to_local(event.pos)
         return None
 
     @staticmethod

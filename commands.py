@@ -12,6 +12,7 @@ from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
 from objects.rectangle import Rectangle
 from objects.square import Square
+from objects.pin import Pin
 from typing import Callable
 
 
@@ -72,6 +73,7 @@ class Tools:
             self.simulation.selected_object = None
             self.record()
         elif (self.simulation.selected_constraint and not self.simulation.tool):
+            print('deleting constraint')
             self.simulation.selected_constraint.remove(self.simulation.space)
             self.simulation.constraints.remove(self.simulation.selected_constraint)
             self.simulation.selected_constraint = None
@@ -168,7 +170,7 @@ class Tools:
         self.redoStack.clear()
 
     def encrypt(self):
-        data = {'objects': [], 'constraints': []}
+        data = {'objects':[], 'constraints':[], 'pins':[pin.json() for pin in self.simulation.pins]}
         for pymunkObject in self.simulation.objects:
             data['objects'].append(pymunkObject.json())
         for pymunkConstraint in self.simulation.constraints:
@@ -177,8 +179,8 @@ class Tools:
     
     def decrypt(self, data) -> dict:
         data = pickle.loads(data)
-        jsonObjects = data.get('objects')
-        jsonConstraints = data.get('constraints')
+        jsonObjects = data.get('objects', [])
+        jsonConstraints = data.get('constraints', [])
         returnedData = {'objects':[], 'constraints':[]}
         pymunk_objects:dict[str, PymunkObject] = {'Circle':Circle, 'Rectangle':Rectangle, 'Square':Square}
         pymunk_constraints:dict[str, PymunkConstraint] = {'DampedSpring':DampedSpring, 'PinJoint':PinJoint}
@@ -192,6 +194,7 @@ class Tools:
             if (pymunkConstraint):
                 pymunkConstraint.place(self.simulation.space)
                 returnedData['constraints'].append(pymunkConstraint)
+        returnedData['pins'] = [Pin.from_json(pin, self.simulation.space, returnedData['objects']) for pin in data.get('pins', [])]
         return returnedData
 
     def clear(self):

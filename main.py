@@ -10,6 +10,7 @@ from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
 from objects.rectangle import Rectangle
 from objects.square import Square
+from objects.pin import Pin
 from ui import ToolButton, TextButton, ToggleButton, DropMenu
 from tk_dialogues import EditMenu
 from mouse import Mouse
@@ -27,6 +28,7 @@ class Simulation:
     tool:str = None
     placeholder:tuple[int, int] = None
     constraints:list = []
+    pins:list[Pin] = []
     playing:bool = False
     selected_object:PymunkObject = None
     selected_constraint:PymunkConstraint = None
@@ -62,6 +64,8 @@ class Simulation:
             'pinJoint':ToolButton(10, 195, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
             'anchor':ToolButton(70, 115, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor'),
             'gearJoint': ToolButton(130, 195, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
+            'pivotJoint': ToolButton(70, 195, 50, 50, lambda: self.commands.changeTool('PivotJoint'), (0, 255, 0), 'PivotJoint'),
+            'pin':ToolButton(10, 275, 50, 50, lambda: self.commands.changeTool('Pin'), (0, 255, 0), 'Pin'),
             'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear')
@@ -138,6 +142,9 @@ class Simulation:
                         if (self.selected_constraint):
                             setattr(self.selected_constraint, key, float(value))
                             setattr(self.selected_constraint.constraint, key, float(value))
+                
+                for pin in self.pins:
+                    pin.hover(event)
                     
                 consumed = []
                 for drop_menu in self.drop_menus.values():
@@ -172,21 +179,19 @@ class Simulation:
                             break
                 
                 #Handles constraint selection and interaction
-                constraint_clicked = False
                 for constraint in self.constraints:
-                    if (constraint.clicked(event, consumed)):
-                        constraint_clicked = True
-                        self.selected_constraint = constraint
-                        # If the tool is not set, open the edit menu
-                        if (not self.tool and not self.playing):
-                            if (self.clicked):
-                                EditMenu(self.selected_constraint.properties())
-                            self.clicked = True
-                            pg.time.set_timer(reset_click, 500, 1)
-                        break
-                # If no constraint was clicked, reset the selected constraint
-                if (not constraint_clicked):
-                    self.selected_constraint = None
+                    if (not self.tool):
+                        if (constraint.clicked(event, consumed)):
+                            self.selected_constraint = constraint
+                            # If the tool is not set, open the edit menu
+                            if (not self.tool and not self.playing):
+                                if (self.clicked):
+                                    properties = self.selected_constraint.properties()
+                                    if (properties):
+                                        EditMenu(properties)
+                                self.clicked = True
+                                pg.time.set_timer(reset_click, 500, 1)
+                            break
                 
                 # Handles object selection and interaction
                 offset = None
@@ -194,6 +199,10 @@ class Simulation:
                     offset = obj.clicked(event, consumed, self.space)
                     if (offset):
                         self.selected_object = obj
+                        for pin in filter(lambda p: p.body == self.selected_object, self.pins):
+                            if (pin.clicked(event)):
+                                offset = pin.offset
+                                break
                         # Add to group selection if ctrl is pressed
                         if (self.ctrl):
                             self.group_select.append(self.selected_object)
@@ -203,7 +212,6 @@ class Simulation:
                             self.mouse.hold = True
                         # Add constraints to the selected object
                         elif (self.tool in ['Spring', 'PinJoint', 'GearJoint'] and not self.playing):
-                            offset = (-1*offset[0], -1*offset[1])
                             if (not self.current_constraint):
                                 if (self.tool == 'Spring'):
                                     self.current_constraint = DampedSpring(self.selected_object, offset)
@@ -221,6 +229,10 @@ class Simulation:
                         # Anchor the selected object
                         elif (self.tool == 'Anchor' and not self.playing):
                             self.selected_object.body.body_type = pm.Body.STATIC
+                            self.commands.record()
+                        elif (self.tool == 'Pin' and not self.playing):
+                            pin = Pin(self.selected_object, offset)
+                            self.pins.append(pin)
                             self.commands.record()
                         # If the tool is not set, open the edit menu
                         if (not self.tool and not self.playing):
@@ -314,6 +326,9 @@ class Simulation:
         
         for object in self.objects:
             object.draw(self.window)
+        
+        for pin in self.pins:
+            pin.draw(self.window)
         
         self.space.debug_draw(self.options)
         pg.display.update()
