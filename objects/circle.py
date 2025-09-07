@@ -1,9 +1,6 @@
 import pygame as pg
-from pygame.event import Event
 import pymunk as pm
 from objects.pymunk_object import PymunkObject
-from ui import ButtonBehavior
-import math
 
 
 class Circle(PymunkObject):

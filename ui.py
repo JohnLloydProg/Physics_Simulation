@@ -98,7 +98,7 @@ class ToolButton(TextButton):
 
 
 class DropMenu:
-    def __init__(self, left:float, top:float, width:float, height:float, options:list[str], on_value:Callable, background:tuple[int, int, int], content:str=''):
+    def __init__(self, left:float, top:float, width:float, height:float, options:dict, tools:dict, background:tuple[int, int, int], content:str=''):
         self.rect = pg.Rect(left, top, width, height)
         self.background = background
         self.expanded:bool = False
@@ -106,13 +106,13 @@ class DropMenu:
         self.selections = []
         self.dropdown_width = max(map(lambda option: FONTS.get('small').size(option)[0], options)) + 10
         self.dropdown_height = 0
-        self.on_value = on_value
+        self.tools = tools
         self.hover = None
-        for i, option in enumerate(options):
-            text = FONTS.get('small').render(option, True, (0, 0, 0))
+        for i, option in enumerate(options.items()):
+            text = FONTS.get('small').render(option[0], True, (0, 0, 0))
             text_rect = pg.Rect(left, self.rect.bottom + (i * (text.get_height() + 10)), width, text.get_height() + 10)
             self.dropdown_height += text_rect.height
-            self.selections.append((option, text, text_rect))
+            self.selections.append((option[1], text, text_rect))
     
     def handle(self, event:pg.event.Event, consumed:list) -> bool:
         if (event.type == pg.MOUSEMOTION):
@@ -133,7 +133,9 @@ class DropMenu:
                 for option, _, text_rect in self.selections:
                     if (text_rect.collidepoint(mouse_pos)):
                         
-                        self.on_value(option)
+                        command = self.tools.get(option)
+                        if (command):
+                            command.call()
                         consumed.append(event)
                         self.expanded = False
                         return True

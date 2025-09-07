@@ -10,7 +10,9 @@ class PivotJoint(PymunkConstraint):
 
     def place(self, space:pm.Space) -> None:
         body_a, body_b = super().place()
-        self.constraint = pm.PivotJoint(a=body_a, b=body_b, anchor_a=self.anchor_a, anchor_b=self.anchor_b)
+        self.constraint = pm.PivotJoint(body_a, body_b, self.anchor_a, self.anchor_b)
+        if (isinstance(self.body_a, PymunkObject) and isinstance(self.body_b, PymunkObject)):
+            self.constraint.collide_bodies = False
         return super().place(space)
 
     def json(self) -> dict:

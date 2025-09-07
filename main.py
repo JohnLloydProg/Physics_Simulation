@@ -5,6 +5,7 @@ pg.init()
 from constraints.damped_spring import DampedSpring
 from constraints.pin_joint import PinJoint
 from constraints.gear_joint import GearJoint
+from constraints.pivot_joint import PivotJoint
 from constraints.constraint import PymunkConstraint
 from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
@@ -40,6 +41,8 @@ class Simulation:
     ctrl = False
     shift = False
     group_select = []
+    undoStack = []
+    redoStack = []
     group = 0
     id = 0
 
@@ -49,30 +52,35 @@ class Simulation:
         self.space = pm.Space()
         self.mouse = Mouse()
         self.space.gravity = (0, 981)
-        self.commands:commands.Tools = commands.Tools(self)
+        self.commands:dict[str, commands.Tool] = {
+            'delete':commands.Delete(self), 'new':commands.New(self), 'load':commands.Load(self), 'save_as':commands.SaveAs(self),
+            'save':commands.Save(self), 'change_tool':commands.ChangeTool(self), 'undo':commands.Undo(self), 'redo':commands.Redo(self),
+            'start':commands.Start(self), 'pause':commands.Pause(self), 'clear':commands.Clear(self), 'record':commands.Record(self),
+            'encrypt':commands.Encrypt(self), 'decrypt':commands.Decrypt(self), 'collide':commands.Collide(self), 'not_collide':commands.NotCollide(self)
+        }
         self.buttons = {
             'move_front':TextButton(150, 0, 70, 25, lambda: self.selected_object.move_front(), (255, 255, 0), 'Move Front', 'small'),
             'move_back':TextButton(230, 0, 70, 25, lambda: self.selected_object.move_back(), (255, 255, 0), 'Move Back', 'small'),
-            'not_collide':TextButton(310, 0, 100, 25, self.commands.not_collide, (0, 255, 255), 'Not Collide', 'small'),
-            'collide': TextButton(420, 0, 100, 25, self.commands.collide, (0, 255, 255), 'Collide', 'small'),
+            'not_collide':TextButton(310, 0, 100, 25, self.commands['not_collide'].call, (0, 255, 255), 'Not Collide', 'small'),
+            'collide': TextButton(420, 0, 100, 25, self.commands['collide'].call, (0, 255, 255), 'Collide', 'small'),
             'toggle_collision': ToggleButton(530, 0, 100, 25, lambda down: setattr(self, 'default_collide', not down), (0, 255, 255), ('Colliding', 'Not Colliding'), 'small'),
-            'circle':ToolButton(10, 35, 50, 50, lambda: self.commands.changeTool('Circle'), (255, 0, 0), 'Circle'), 
-            'square':ToolButton(70, 35, 50, 50, lambda: self.commands.changeTool('Square'), (0, 255, 0), 'Square'),
-            'rectangle':ToolButton(130, 35, 50, 50, lambda: self.commands.changeTool('Rectangle'), (0, 0, 255), 'Rectangle'), 
-            'move':ToolButton(130, 115, 50, 50, lambda: self.commands.changeTool('Move'), (0, 0, 255), 'Move'),
-            'spring':ToolButton(10, 115, 50, 50, lambda: self.commands.changeTool('Spring'), (255, 0, 255), 'Spring'),
-            'pinJoint':ToolButton(10, 195, 50, 50, lambda: self.commands.changeTool('PinJoint'), (255, 255, 0), 'PinJoint'),
-            'anchor':ToolButton(70, 115, 50, 50, lambda: self.commands.changeTool('Anchor'), (0, 255, 255), 'Anchor'),
-            'gearJoint': ToolButton(130, 195, 50, 50, lambda: self.commands.changeTool('GearJoint'), (255, 0, 0), 'GearJoint'),
-            'pivotJoint': ToolButton(70, 195, 50, 50, lambda: self.commands.changeTool('PivotJoint'), (0, 255, 0), 'PivotJoint'),
-            'pin':ToolButton(10, 275, 50, 50, lambda: self.commands.changeTool('Pin'), (0, 255, 0), 'Pin'),
-            'start':TextButton(10, 820, 340, 70, self.commands.start, (255, 255, 0), 'Start'), 
-            'pause':TextButton(10, 740, 340, 70, self.commands.pause, (255, 0, 255), 'Pause'),
-            'clear':TextButton(10, 660, 340, 70, self.commands.clear, (0, 255, 255), 'Clear')
+            'circle':ToolButton(10, 35, 50, 50, lambda: self.commands['change_tool'].call('Circle'), (255, 0, 0), 'Circle'), 
+            'square':ToolButton(70, 35, 50, 50, lambda: self.commands['change_tool'].call('Square'), (0, 255, 0), 'Square'),
+            'rectangle':ToolButton(130, 35, 50, 50, lambda: self.commands['change_tool'].call('Rectangle'), (0, 0, 255), 'Rectangle'), 
+            'move':ToolButton(130, 115, 50, 50, lambda: self.commands['change_tool'].call('Move'), (0, 0, 255), 'Move'),
+            'spring':ToolButton(10, 115, 50, 50, lambda: self.commands['change_tool'].call('Spring'), (255, 0, 255), 'Spring'),
+            'pinJoint':ToolButton(10, 195, 50, 50, lambda: self.commands['change_tool'].call('PinJoint'), (255, 255, 0), 'PinJoint'),
+            'anchor':ToolButton(70, 115, 50, 50, lambda: self.commands['change_tool'].call('Anchor'), (0, 255, 255), 'Anchor'),
+            'gearJoint': ToolButton(130, 195, 50, 50, lambda: self.commands['change_tool'].call('GearJoint'), (255, 0, 0), 'GearJoint'),
+            'pivotJoint': ToolButton(70, 195, 50, 50, lambda: self.commands['change_tool'].call('PivotJoint'), (0, 255, 0), 'PivotJoint'),
+            'pin':ToolButton(10, 275, 50, 50, lambda: self.commands['change_tool'].call('Pin'), (0, 255, 0), 'Pin'),
+            'start':TextButton(10, 820, 340, 70, self.commands['start'].call, (255, 255, 0), 'Start'), 
+            'pause':TextButton(10, 740, 340, 70, self.commands['pause'].call, (255, 0, 255), 'Pause'),
+            'clear':TextButton(10, 660, 340, 70, self.commands['clear'].call, (0, 255, 255), 'Clear')
         }
         self.drop_menus = {
-            'file':DropMenu(0, 0, 70, 25, ['New', 'Load', 'Save As', 'Save'], self.commands.file_select, (200, 200, 200), 'File'),
-            'edit':DropMenu(70, 0, 70, 25, ['Undo', 'Redo', 'Delete'], self.commands.edit_select, (200, 200, 200), 'Edit')
+            'file':DropMenu(0, 0, 70, 25, {'New':'new', 'Load':'load', 'Save As':'save_as', 'Save':'save'}, self.commands, (200, 200, 200), 'File'),
+            'edit':DropMenu(70, 0, 70, 25, {'Undo':'undo', 'Redo':'redo', 'Delete':'delete'}, self.commands, (200, 200, 200), 'Edit')
         }
         self.border_shapes = []
         self.options = pymunk.pygame_util.DrawOptions(self.window)
@@ -80,11 +88,18 @@ class Simulation:
         h = self.space.add_collision_handler(1, 1)
         h.begin = self.only_collide_same
         self.create_border(360, 25)
+        self.undoStack = [self.commands['encrypt'].call()]
         self.loop()
     
     def only_collide_same(self, arbiter, space, data):
         a, b = arbiter.shapes
         return a.group_id != b.group_id
+
+    def get_pymunk_object_from_shape(self, shape:pm.Shape) -> PymunkObject|None:
+        for obj in self.objects:
+            if (obj.shape == shape):
+                return obj
+        return None
     
     def create_border(self, x, y):
         for border_shape in self.border_shapes:
@@ -121,14 +136,8 @@ class Simulation:
                     elif (event.key == pg.K_LSHIFT or event.key == pg.K_RSHIFT):
                         self.shift = True
                     else:
-                        for shortcut, func in self.commands.shorcuts.items():
-                            if (shortcut == 'delete' and event.key == pg.K_DELETE):
-                                func()
-                            elif ('ctrl' in shortcut and self.ctrl):
-                                if ('shift' in shortcut and not self.shift):
-                                    continue
-                                if (pg.key.name(event.key) in shortcut):
-                                    func()
+                        for command in self.commands.values():
+                            command.shortcut(event, self.ctrl, self.shift)
                 if (event.type == pg.KEYUP):
                     if (event.key == pg.K_LCTRL or event.key == pg.K_RCTRL):
                         self.ctrl = False
@@ -175,7 +184,7 @@ class Simulation:
                                 if (self.default_collide):
                                     self.group += 1
                             self.placeholder = None
-                            self.commands.record()
+                            self.commands['record'].call()
                             break
                 
                 #Handles constraint selection and interaction
@@ -193,54 +202,76 @@ class Simulation:
                                 pg.time.set_timer(reset_click, 500, 1)
                             break
                 
+                if (self.tool == 'PivotJoint' and not self.playing):
+                    if (self.mouse.down(event, consumed)):
+                        hits = self.space.point_query(pm.Vec2d(*event.pos), 0, pm.ShapeFilter())
+                        print(hits)
+                        if (hits):
+                            if (len(hits)) > 1:
+                                objects = list(map(lambda hit: self.get_pymunk_object_from_shape(hit.shape), hits))[:2]
+                                pin = PivotJoint(objects[0], objects[0].body.world_to_local(event.pos))
+                                pin.set_body_b(objects[1], objects[1].body.world_to_local(event.pos))
+                                self.constraints.append(pin)
+                                pin.place(self.space)
+                                self.commands['record'].call()
+                            else:
+                                pymunk_object = self.get_pymunk_object_from_shape(hits[0].shape)
+                                pin = PivotJoint(pymunk_object, pymunk_object.body.world_to_local(event.pos))
+                                pin.set_body_b(self.space.static_body, event.pos)
+                                self.constraints.append(pin)
+                                pin.place(self.space)
+                                self.commands['record'].call()
+                
                 # Handles object selection and interaction
                 offset = None
-                for obj in sorted(self.objects, key=lambda obj: obj.z_index, reverse=True):
-                    offset = obj.clicked(event, consumed, self.space)
-                    if (offset):
-                        self.selected_object = obj
-                        for pin in filter(lambda p: p.body == self.selected_object, self.pins):
-                            if (pin.clicked(event)):
-                                offset = pin.offset
-                                break
-                        # Add to group selection if ctrl is pressed
-                        if (self.ctrl):
-                            self.group_select.append(self.selected_object)
-                        # Selects the objects for movement 
-                        if (self.tool == 'Move' and not self.playing):
-                            self.offset = offset
-                            self.mouse.hold = True
-                        # Add constraints to the selected object
-                        elif (self.tool in ['Spring', 'PinJoint', 'GearJoint'] and not self.playing):
-                            if (not self.current_constraint):
-                                if (self.tool == 'Spring'):
-                                    self.current_constraint = DampedSpring(self.selected_object, offset)
-                                elif (self.tool == 'PinJoint'):
-                                    self.current_constraint = PinJoint(self.selected_object, offset)
-                                elif (self.tool == 'GearJoint'):
-                                    self.current_constraint = GearJoint(self.selected_object, offset)
-                            else:
-                                if (self.selected_object != self.current_constraint.body_a):
-                                    self.current_constraint.set_body_b(self.selected_object, offset)
-                                    self.constraints.append(self.current_constraint)
-                                    self.current_constraint.place(self.space)
-                                    self.commands.record()
-                                self.current_constraint = None
-                        # Anchor the selected object
-                        elif (self.tool == 'Anchor' and not self.playing):
-                            self.selected_object.body.body_type = pm.Body.STATIC
-                            self.commands.record()
-                        elif (self.tool == 'Pin' and not self.playing):
-                            pin = Pin(self.selected_object, offset)
-                            self.pins.append(pin)
-                            self.commands.record()
-                        # If the tool is not set, open the edit menu
-                        if (not self.tool and not self.playing):
-                            if (self.clicked):
-                                EditMenu(self.selected_object.properties())
-                            self.clicked = True
-                            pg.time.set_timer(reset_click, 500, 1)
-                        break
+                if (not self.playing):
+                    for obj in sorted(self.objects, key=lambda obj: obj.z_index, reverse=True):
+                        offset = obj.clicked(event, consumed, self.space)
+                        if (offset):
+                            self.selected_object = obj
+                            for pin in filter(lambda p: p.body == self.selected_object, self.pins):
+                                if (pin.clicked(event)):
+                                    offset = pin.offset
+                                    break
+                            # Add to group selection if ctrl is pressed
+                            if (self.ctrl):
+                                self.group_select.append(self.selected_object)
+                                print(self.group_select)
+                            # Selects the objects for movement 
+                            if (self.tool == 'Move' and not self.playing):
+                                self.offset = offset
+                                self.mouse.hold = True
+                            # Add constraints to the selected object
+                            elif (self.tool in ['Spring', 'PinJoint', 'GearJoint'] and not self.playing):
+                                if (not self.current_constraint):
+                                    if (self.tool == 'Spring'):
+                                        self.current_constraint = DampedSpring(self.selected_object, offset)
+                                    elif (self.tool == 'PinJoint'):
+                                        self.current_constraint = PinJoint(self.selected_object, offset)
+                                    elif (self.tool == 'GearJoint'):
+                                        self.current_constraint = GearJoint(self.selected_object, offset)
+                                else:
+                                    if (self.selected_object != self.current_constraint.body_a):
+                                        self.current_constraint.set_body_b(self.selected_object, offset)
+                                        self.constraints.append(self.current_constraint)
+                                        self.current_constraint.place(self.space)
+                                        self.commands['record'].call()
+                                    self.current_constraint = None
+                            # Anchor the selected object
+                            elif (self.tool == 'Anchor' and not self.playing):
+                                self.selected_object.body.body_type = pm.Body.STATIC
+                                self.commands['record'].call()
+                            elif (self.tool == 'Pin' and not self.playing):
+                                pin = Pin(self.selected_object, offset)
+                                self.pins.append(pin)
+                                self.commands['record'].call()
+                            # If the tool is not set, open the edit menu
+                            if (not self.tool and not self.playing):
+                                if (self.clicked):
+                                    EditMenu(self.selected_object.properties())
+                                self.clicked = True
+                                pg.time.set_timer(reset_click, 500, 1)
+                            break
                 
                 # If no object was clicked, reset the selected object
                 if (not self.tool and not offset and event.type == pg.MOUSEBUTTONDOWN and event not in consumed):
@@ -273,7 +304,7 @@ class Simulation:
                                 self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
                                 self.constraints.append(self.current_constraint)
                                 self.current_constraint.place(self.space)
-                                self.commands.record()
+                                self.commands['record'].call()
                             self.current_constraint = None
 
                 # Interacting with the objects using the mouse
@@ -281,7 +312,6 @@ class Simulation:
                     for obj in self.objects:
                         offset = obj.clicked(event, consumed, self.space)
                         if (offset):
-                            offset = (-1*offset[0], -1*offset[1])
                             self.mouse.join(obj.body, offset, self.space)
                             break
                     if (event.type == pg.MOUSEBUTTONUP and self.mouse.joint):
