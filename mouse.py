@@ -28,7 +28,7 @@ class Mouse:
         return False
 
     def dragging(self, event:pg.event.Event) -> bool:
-        return (self.move(event) and self.hold)
+        return self.move(event) and self.hold
 
     def join(self, body, offset, space:pm.Space):
         self.joint = pm.PivotJoint(self.body, body, (0, 0), offset)

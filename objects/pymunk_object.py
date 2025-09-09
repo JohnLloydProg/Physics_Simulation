@@ -9,9 +9,10 @@ class PymunkObject:
     shape:pm.Shape
     position:tuple[int, int]
 
-    def __init__(self, id:int, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC, group_id:int=0):
+    def __init__(self, id:int, angle:float=0, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC, group_id:int=0):
         self.id = id
         self.mass = mass
+        self.angle = angle
         self.friction = friction
         self.elasticity = elasticity
         self.body_type = body_type
@@ -24,6 +25,7 @@ class PymunkObject:
     def place(self, space:pm.Space) -> None:
         self.body = pm.Body(body_type=self.body_type)
         self.body.position = self.position
+        self.body.angle = self.angle
     
     def move_front(self):
         self.z_index += 1
@@ -51,6 +53,7 @@ class PymunkObject:
             'id': self.id,
             'position':self.position,
             'mass':self.mass,
+            'angle':self.angle,
             'friction':self.friction,
             'elasticity':self.elasticity,
             'body_type':self.body_type,
@@ -64,7 +67,7 @@ class PymunkObject:
     
     def reset(self) -> None:
         self.body.position = self.position
-        self.body.angle = 0
+        self.body.angle = self.angle
         self.body.velocity = (0, 0)
         self.body.angular_velocity = 0
     

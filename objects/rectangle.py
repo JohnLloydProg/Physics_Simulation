@@ -5,8 +5,8 @@ import math
 
 
 class Rectangle(PymunkObject):
-    def __init__(self, id, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC, group_id:int=0):
-        super().__init__(id, mass, friction, elasticity, body_type, group_id)
+    def __init__(self, id, corner_1, corner_2, angle=0, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC, group_id:int=0):
+        super().__init__(id, angle, mass, friction, elasticity, body_type, group_id)
         self.corner_1 = corner_1
         self.corner_2 = corner_2
         self.position = ((corner_1[0] + corner_2[0])/2,(corner_1[1] + corner_2[1])/2)
@@ -22,6 +22,7 @@ class Rectangle(PymunkObject):
             id = data['id'],
             corner_1=data['corner_1'],
             corner_2=data['corner_2'],
+            angle=data['angle'],
             mass=data['mass'],
             friction=data['friction'],
             elasticity=data['elasticity'],

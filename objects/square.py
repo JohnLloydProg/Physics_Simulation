@@ -5,8 +5,8 @@ import math
 
 
 class Square(Rectangle):
-    def __init__(self, id, corner_1, corner_2, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC, group_id:int=0):
-        super().__init__(id, corner_1, corner_2, mass, friction, elasticity, body_type, group_id)
+    def __init__(self, id, corner_1, corner_2, angle=0, mass = 10, friction = 0.5, elasticity = 0.5, body_type = pm.Body.DYNAMIC, group_id:int=0):
+        super().__init__(id, corner_1, corner_2, angle, mass, friction, elasticity, body_type, group_id)
         side = (math.dist(corner_1, corner_2) * math.sqrt(2))/2
 
         self.points = [(-side/2, -side/2), (side/2, -side/2), (side/2, side/2), (-side/2, side/2)]
@@ -18,6 +18,7 @@ class Square(Rectangle):
             id = data['id'],
             corner_1=data['corner_1'],
             corner_2=data['corner_2'],
+            angle=data['angle'],
             mass=data['mass'],
             friction=data['friction'],
             elasticity=data['elasticity'],

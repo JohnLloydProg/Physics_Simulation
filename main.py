@@ -6,6 +6,7 @@ from constraints.damped_spring import DampedSpring
 from constraints.pin_joint import PinJoint
 from constraints.gear_joint import GearJoint
 from constraints.pivot_joint import PivotJoint
+from constraints.square_joint import SquareJoint
 from constraints.constraint import PymunkConstraint
 from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
@@ -19,6 +20,7 @@ import math
 import pickle
 from tkinter import filedialog
 import commands
+import math
 
 reset_click = pg.USEREVENT + 1
 
@@ -64,16 +66,18 @@ class Simulation:
             'not_collide':TextButton(310, 0, 100, 25, self.commands['not_collide'].call, (0, 255, 255), 'Not Collide', 'small'),
             'collide': TextButton(420, 0, 100, 25, self.commands['collide'].call, (0, 255, 255), 'Collide', 'small'),
             'toggle_collision': ToggleButton(530, 0, 100, 25, lambda down: setattr(self, 'default_collide', not down), (0, 255, 255), ('Colliding', 'Not Colliding'), 'small'),
-            'circle':ToolButton(10, 35, 50, 50, lambda: self.commands['change_tool'].call('Circle'), (255, 0, 0), 'Circle'), 
-            'square':ToolButton(70, 35, 50, 50, lambda: self.commands['change_tool'].call('Square'), (0, 255, 0), 'Square'),
-            'rectangle':ToolButton(130, 35, 50, 50, lambda: self.commands['change_tool'].call('Rectangle'), (0, 0, 255), 'Rectangle'), 
-            'move':ToolButton(130, 115, 50, 50, lambda: self.commands['change_tool'].call('Move'), (0, 0, 255), 'Move'),
-            'spring':ToolButton(10, 115, 50, 50, lambda: self.commands['change_tool'].call('Spring'), (255, 0, 255), 'Spring'),
-            'pinJoint':ToolButton(10, 195, 50, 50, lambda: self.commands['change_tool'].call('PinJoint'), (255, 255, 0), 'PinJoint'),
-            'anchor':ToolButton(70, 115, 50, 50, lambda: self.commands['change_tool'].call('Anchor'), (0, 255, 255), 'Anchor'),
-            'gearJoint': ToolButton(130, 195, 50, 50, lambda: self.commands['change_tool'].call('GearJoint'), (255, 0, 0), 'GearJoint'),
-            'pivotJoint': ToolButton(70, 195, 50, 50, lambda: self.commands['change_tool'].call('PivotJoint'), (0, 255, 0), 'PivotJoint'),
-            'pin':ToolButton(10, 275, 50, 50, lambda: self.commands['change_tool'].call('Pin'), (0, 255, 0), 'Pin'),
+            'circle':ToolButton(10, 35, 50, 50, self.commands['change_tool'].call, (255, 0, 0), 'Circle'), 
+            'square':ToolButton(70, 35, 50, 50, self.commands['change_tool'].call, (0, 255, 0), 'Square'),
+            'rectangle':ToolButton(130, 35, 50, 50, self.commands['change_tool'].call, (0, 0, 255), 'Rectangle'), 
+            'move':ToolButton(130, 115, 50, 50, self.commands['change_tool'].call, (0, 0, 255), 'Move'),
+            'spring':ToolButton(10, 115, 50, 50, self.commands['change_tool'].call, (255, 0, 255), 'Spring'),
+            'pinJoint':ToolButton(10, 195, 50, 50, self.commands['change_tool'].call, (255, 255, 0), 'PinJoint'),
+            'anchor':ToolButton(70, 115, 50, 50, self.commands['change_tool'].call, (0, 255, 255), 'Anchor'),
+            'gearJoint': ToolButton(130, 195, 50, 50, self.commands['change_tool'].call, (255, 0, 0), 'GearJoint'),
+            'pivotJoint': ToolButton(70, 195, 50, 50, self.commands['change_tool'].call, (0, 255, 0), 'PivotJoint'),
+            'pin':ToolButton(10, 275, 50, 50, self.commands['change_tool'].call, (0, 255, 0), 'Pin'),
+            'squareJoint':ToolButton(70, 275, 50, 50, self.commands['change_tool'].call, (255, 0, 255), 'SquareJoint'),
+            'rotate':ToolButton(130, 275, 50, 50, self.commands['change_tool'].call, (0, 0, 255), 'Rotate'),
             'start':TextButton(10, 820, 340, 70, self.commands['start'].call, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands['pause'].call, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands['clear'].call, (0, 255, 255), 'Clear')
@@ -202,19 +206,22 @@ class Simulation:
                                 pg.time.set_timer(reset_click, 500, 1)
                             break
                 
-                if (self.tool == 'PivotJoint' and not self.playing):
+                if (self.tool in ['PivotJoint', 'SquareJoint'] and not self.playing):
                     if (self.mouse.down(event, consumed)):
                         hits = self.space.point_query(pm.Vec2d(*event.pos), 0, pm.ShapeFilter())
                         print(hits)
                         if (hits):
                             if (len(hits)) > 1:
                                 objects = list(map(lambda hit: self.get_pymunk_object_from_shape(hit.shape), hits))[:2]
-                                pin = PivotJoint(objects[0], objects[0].body.world_to_local(event.pos))
-                                pin.set_body_b(objects[1], objects[1].body.world_to_local(event.pos))
-                                self.constraints.append(pin)
-                                pin.place(self.space)
+                                if (self.tool == 'PivotJoint'):
+                                    constraint = PivotJoint(objects[0], objects[0].body.world_to_local(event.pos))
+                                else:
+                                    constraint = SquareJoint(objects[0], objects[0].body.world_to_local(event.pos))
+                                constraint.set_body_b(objects[1], objects[1].body.world_to_local(event.pos))
+                                self.constraints.append(constraint)
+                                constraint.place(self.space)
                                 self.commands['record'].call()
-                            else:
+                            elif (self.tool == 'PivotJoint'):
                                 pymunk_object = self.get_pymunk_object_from_shape(hits[0].shape)
                                 pin = PivotJoint(pymunk_object, pymunk_object.body.world_to_local(event.pos))
                                 pin.set_body_b(self.space.static_body, event.pos)
@@ -238,11 +245,12 @@ class Simulation:
                                 self.group_select.append(self.selected_object)
                                 print(self.group_select)
                             # Selects the objects for movement 
-                            if (self.tool == 'Move' and not self.playing):
-                                self.offset = offset
+                            if (self.tool in ['Move', 'Rotate']):
+                                if (self.tool == 'Move'):
+                                    self.offset = offset
                                 self.mouse.hold = True
                             # Add constraints to the selected object
-                            elif (self.tool in ['Spring', 'PinJoint', 'GearJoint'] and not self.playing):
+                            elif (self.tool in ['Spring', 'PinJoint', 'GearJoint']):
                                 if (not self.current_constraint):
                                     if (self.tool == 'Spring'):
                                         self.current_constraint = DampedSpring(self.selected_object, offset)
@@ -258,15 +266,15 @@ class Simulation:
                                         self.commands['record'].call()
                                     self.current_constraint = None
                             # Anchor the selected object
-                            elif (self.tool == 'Anchor' and not self.playing):
+                            elif (self.tool == 'Anchor'):
                                 self.selected_object.body.body_type = pm.Body.STATIC
                                 self.commands['record'].call()
-                            elif (self.tool == 'Pin' and not self.playing):
+                            elif (self.tool == 'Pin'):
                                 pin = Pin(self.selected_object, offset)
                                 self.pins.append(pin)
                                 self.commands['record'].call()
                             # If the tool is not set, open the edit menu
-                            if (not self.tool and not self.playing):
+                            if (not self.tool):
                                 if (self.clicked):
                                     EditMenu(self.selected_object.properties())
                                 self.clicked = True
@@ -284,11 +292,25 @@ class Simulation:
                         position = (self.mouse.position[0] - self.offset[0], self.mouse.position[1] - self.offset[1])
                         self.selected_object.set_position(position)
                         self.space.reindex_shapes_for_body(self.selected_object.body)
-                    if (self.mouse.up(event, consumed)):
-                        for constraint in self.constraints:
-                            if constraint.body_a == self.selected_object or constraint.body_b == self.selected_object:
-                                constraint.remove(self.space)
-                                constraint.place(self.space)
+                    if (self.mouse.up(event, consumed) and self.selected_object):
+                            for constraint in self.constraints:
+                                if constraint.body_a == self.selected_object or constraint.body_b == self.selected_object:
+                                    constraint.remove(self.space)
+                                    constraint.place(self.space)
+                            self.commands['record'].call()
+                            self.selected_object = None
+                if (self.tool == 'Rotate' and not self.playing):
+                    if (self.selected_object and self.mouse.dragging(event)):
+                        print(self.mouse.position, self.selected_object.body.position)
+                        y = self.mouse.position[1] - self.selected_object.body.position[1]
+                        x = self.mouse.position[0] - self.selected_object.body.position[0]
+                        angle = math.atan2(y, x)
+                        self.selected_object.angle = angle
+                        self.selected_object.body.angle = angle
+                        self.space.reindex_shapes_for_body(self.selected_object.body)
+                        print((y, x), math.degrees(angle), angle)
+                    if (self.mouse.up(event, consumed) and self.selected_object):
+                        self.commands['record'].call()
                         self.selected_object = None
                 
                 # Adding constraints on the space
@@ -359,6 +381,11 @@ class Simulation:
         
         for pin in self.pins:
             pin.draw(self.window)
+
+        if (self.selected_object and self.tool == 'Rotate' and self.mouse.hold):
+            p1 = self.selected_object.body.position
+            p2 = self.mouse.position
+            pg.draw.circle(self.window, (0, 0, 0), p1,  math.dist(p1, p2), 2)
         
         self.space.debug_draw(self.options)
         pg.display.update()

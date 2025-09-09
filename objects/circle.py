@@ -4,8 +4,8 @@ from objects.pymunk_object import PymunkObject
 
 
 class Circle(PymunkObject):
-    def __init__(self, id:int, position:tuple[int, int], radius:float, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC, group_id:int=0):
-        super().__init__(id, mass, friction, elasticity, body_type, group_id)
+    def __init__(self, id:int, position:tuple[int, int], radius:float, angle:float=0, mass:float=10.0, friction:float=0.5, elasticity:float=0.5, body_type:int=pm.Body.DYNAMIC, group_id:int=0):
+        super().__init__(id, angle, mass, friction, elasticity, body_type, group_id)
         self.position = position
         self.radius = radius
 
@@ -19,6 +19,7 @@ class Circle(PymunkObject):
             id = data['id'],
             position=data['position'],
             radius=data['radius'],
+            angle=data['angle'],
             mass=data['mass'],
             friction=data['friction'],
             elasticity=data['elasticity'],
