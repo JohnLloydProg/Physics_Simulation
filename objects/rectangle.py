@@ -59,9 +59,10 @@ class Rectangle(PymunkObject):
         if (self.body):
             space.add(self.body, self.shape)
     
-    def draw(self, window:pg.Surface) -> None:
+    def draw(self, window:pg.Surface, selected:bool) -> None:
         color = (0, 255, 0) if (self.body.body_type == pm.Body.DYNAMIC) else (100, 255, 100)
         self.surface.fill(color)
+        pg.draw.rect(self.surface, (0, 0, 0), (0, 0, self.surface.get_width(), self.surface.get_height()), 3 if not selected else 6)
         super().draw(window)
 
         

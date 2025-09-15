@@ -7,6 +7,9 @@ from constraints.pin_joint import PinJoint
 from constraints.gear_joint import GearJoint
 from constraints.pivot_joint import PivotJoint
 from constraints.square_joint import SquareJoint
+from constraints.string import StringConstraint
+from constraints.simple_motor import SimpleMotor
+from constraints.ratchet_joint import RatchetJoint
 from constraints.constraint import PymunkConstraint
 from objects.pymunk_object import PymunkObject
 from objects.circle import Circle
@@ -23,6 +26,16 @@ import commands
 import math
 
 reset_click = pg.USEREVENT + 1
+CONSTRAINT_TYPES = {
+    'Spring': DampedSpring,
+    'PinJoint': PinJoint,
+    'GearJoint': GearJoint,
+    'PivotJoint': PivotJoint,
+    'SquareJoint': SquareJoint,
+    'String': StringConstraint,
+    'Motor': SimpleMotor,
+    'RatchetJoint': RatchetJoint
+}
 
 
 class Simulation:
@@ -78,6 +91,9 @@ class Simulation:
             'pin':ToolButton(10, 275, 50, 50, self.commands['change_tool'].call, (0, 255, 0), 'Pin'),
             'squareJoint':ToolButton(70, 275, 50, 50, self.commands['change_tool'].call, (255, 0, 255), 'SquareJoint'),
             'rotate':ToolButton(130, 275, 50, 50, self.commands['change_tool'].call, (0, 0, 255), 'Rotate'),
+            'string':ToolButton(10, 355, 50, 50, self.commands['change_tool'].call, (255, 0, 255), 'String'),
+            'motor':ToolButton(70, 355, 50, 50, self.commands['change_tool'].call, (255, 255, 0), 'Motor'),
+            'ratchetJoint':ToolButton(130, 355, 50, 50, self.commands['change_tool'].call, (0, 255, 255), 'RatchetJoint'),
             'start':TextButton(10, 820, 340, 70, self.commands['start'].call, (255, 255, 0), 'Start'), 
             'pause':TextButton(10, 740, 340, 70, self.commands['pause'].call, (255, 0, 255), 'Pause'),
             'clear':TextButton(10, 660, 340, 70, self.commands['clear'].call, (0, 255, 255), 'Clear')
@@ -177,13 +193,17 @@ class Simulation:
                             pymunkObject = None
                             if (self.tool == 'Circle'):
                                 pymunkObject = Circle(self.id, self.placeholder, math.dist(self.placeholder, self.mouse.position), group_id=self.group)
+                                pin = Pin(pymunkObject, (0, 0))
                             elif (self.tool == 'Rectangle'):
                                 pymunkObject = Rectangle(self.id, self.placeholder, self.mouse.position, group_id=self.group)
+                                pin = Pin(pymunkObject, (0, 0))
                             elif (self.tool == 'Square'):
                                 pymunkObject = Square(self.id, self.placeholder, self.mouse.position, group_id=self.group)
+                                pin = Pin(pymunkObject, (0, 0))
                             if (pymunkObject):
                                 pymunkObject.place(self.space)
                                 self.objects.append(pymunkObject)
+                                self.pins.append(pin)
                                 self.id += 1
                                 if (self.default_collide):
                                     self.group += 1
@@ -213,17 +233,27 @@ class Simulation:
                         if (hits):
                             if (len(hits)) > 1:
                                 objects = list(map(lambda hit: self.get_pymunk_object_from_shape(hit.shape), hits))[:2]
+                                offset = objects[0].body.world_to_local(event.pos)
+                                for pin in filter(lambda p: p.body == objects[0], self.pins):
+                                    if (pin.clicked(event)):
+                                        offset = pin.offset
+                                        break
                                 if (self.tool == 'PivotJoint'):
-                                    constraint = PivotJoint(objects[0], objects[0].body.world_to_local(event.pos))
+                                    constraint = PivotJoint(objects[0], offset)
                                 else:
-                                    constraint = SquareJoint(objects[0], objects[0].body.world_to_local(event.pos))
+                                    constraint = SquareJoint(objects[0], offset)
                                 constraint.set_body_b(objects[1], objects[1].body.world_to_local(event.pos))
                                 self.constraints.append(constraint)
                                 constraint.place(self.space)
                                 self.commands['record'].call()
                             elif (self.tool == 'PivotJoint'):
                                 pymunk_object = self.get_pymunk_object_from_shape(hits[0].shape)
-                                pin = PivotJoint(pymunk_object, pymunk_object.body.world_to_local(event.pos))
+                                offset = pymunk_object.body.world_to_local(event.pos)
+                                for pin in filter(lambda p: p.body == pymunk_object, self.pins):
+                                    if (pin.clicked(event)):
+                                        offset = pin.offset
+                                        break
+                                pin = PivotJoint(pymunk_object, offset)
                                 pin.set_body_b(self.space.static_body, event.pos)
                                 self.constraints.append(pin)
                                 pin.place(self.space)
@@ -250,14 +280,9 @@ class Simulation:
                                     self.offset = offset
                                 self.mouse.hold = True
                             # Add constraints to the selected object
-                            elif (self.tool in ['Spring', 'PinJoint', 'GearJoint']):
+                            elif (self.tool in ['Spring', 'PinJoint', 'GearJoint', 'String', 'Motor', 'RatchetJoint']):
                                 if (not self.current_constraint):
-                                    if (self.tool == 'Spring'):
-                                        self.current_constraint = DampedSpring(self.selected_object, offset)
-                                    elif (self.tool == 'PinJoint'):
-                                        self.current_constraint = PinJoint(self.selected_object, offset)
-                                    elif (self.tool == 'GearJoint'):
-                                        self.current_constraint = GearJoint(self.selected_object, offset)
+                                    self.current_constraint = CONSTRAINT_TYPES[self.tool](self.selected_object, offset)
                                 else:
                                     if (self.selected_object != self.current_constraint.body_a):
                                         self.current_constraint.set_body_b(self.selected_object, offset)
@@ -314,13 +339,10 @@ class Simulation:
                         self.selected_object = None
                 
                 # Adding constraints on the space
-                if (self.tool in ['Spring', 'PinJoint'] and not self.playing):
+                if (self.tool in ['Spring', 'PinJoint', 'String'] and not self.playing):
                     if (not offset and self.mouse.down(event, consumed)):
                         if (not self.current_constraint):
-                            if (self.tool == 'Spring'):
-                                self.current_constraint = DampedSpring(self.space.static_body, self.mouse.position)
-                            elif (self.tool == 'PinJoint'):
-                                self.current_constraint = PinJoint(self.space.static_body, self.mouse.position)
+                            self.current_constraint = CONSTRAINT_TYPES[self.tool](self.space.static_body, self.mouse.position)
                         else:
                             if (self.current_constraint.body_a != self.space.static_body):
                                 self.current_constraint.set_body_b(self.space.static_body, self.mouse.position)
@@ -377,7 +399,7 @@ class Simulation:
                 pg.draw.rect(self.window, (0, 0, 255), (self.placeholder[0], self.placeholder[1], side, side))
         
         for object in self.objects:
-            object.draw(self.window)
+            object.draw(self.window, (self.selected_object == object or object in self.group_select))
         
         for pin in self.pins:
             pin.draw(self.window)

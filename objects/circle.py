@@ -48,10 +48,11 @@ class Circle(PymunkObject):
         if (self.body):
             space.add(self.body, self.shape)
     
-    def draw(self, window:pg.Surface) -> None:
+    def draw(self, window:pg.Surface, selected:bool) -> None:
         self.surface.fill((255, 255, 255, 0))
         color = (255, 0, 0) if (self.body.body_type == pm.Body.DYNAMIC) else (255, 100, 100)
         pg.draw.circle(self.surface, color, (self.radius, self.radius), self.radius)
+        pg.draw.circle(self.surface, (0, 0, 0), (self.radius, self.radius), self.radius, 3 if not selected else 6)
         pg.draw.line(self.surface, (0, 0, 0), (self.radius, self.radius), (self.radius*2, self.radius), 3)
         super().draw(window)
         
