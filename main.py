@@ -105,15 +105,14 @@ class Simulation:
         self.border_shapes = []
         self.options = pymunk.pygame_util.DrawOptions(self.window)
         self.options.flags = pymunk.pygame_util.DrawOptions.DRAW_CONSTRAINTS
-        h = self.space.add_collision_handler(1, 1)
-        h.begin = self.only_collide_same
+        self.space.on_collision(1, 1, self.only_collide_same)
         self.create_border(360, 25)
         self.undoStack = [self.commands['encrypt'].call()]
         self.loop()
     
-    def only_collide_same(self, arbiter, space, data):
+    def only_collide_same(self, arbiter:pm.Arbiter, space:pm.Space, data:dict):
         a, b = arbiter.shapes
-        return a.group_id != b.group_id
+        arbiter.process_collision = a.group_id != b.group_id
 
     def get_pymunk_object_from_shape(self, shape:pm.Shape) -> PymunkObject|None:
         for obj in self.objects:
